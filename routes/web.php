@@ -36,7 +36,10 @@ Route::prefix('client')->middleware('auth:web')->group(function () {
     Route::post('/cart/update', [ClientAccountController::class, 'updateCartItem'])->name('cart.update');
     // حذف منتج من السلة
     Route::post('/cart/remove', [ClientAccountController::class, 'removeCartItem'])->name('cart.remove');
-    // أضف المزيد من الروتات هنا حسب الحاجة
+    // إنشاء أوردر جديد مباشرة من السلة
+    Route::post('/order/create', [ClientAccountController::class, 'createOrder'])->name('order.create');
+    Route::get('/checkout', [ClientAccountController::class, 'checkout'])->name('client.checkout');
+    Route::get('/tracking', [ClientAccountController::class, 'tracking'])->name('client.tracking');
 });
 
 

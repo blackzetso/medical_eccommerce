@@ -112,13 +112,13 @@ input[type=number]::-webkit-outer-spin-button {
         <div class="container">
             <ul class="checkout-progress-bar d-flex justify-content-center flex-wrap">
                 <li class="active">
-                    <a href="cart.html">Shopping Cart</a>
+                    <Link :href="route('client.cart')">سلة التسوق</Link>
                 </li>
                 <li>
-                    <a href="checkout.html">Checkout</a>
+                    <Link :href="route('client.checkout')">الدفع</Link>
                 </li>
                 <li class="disabled">
-                    <a href="cart.html">Order Complete</a>
+                    <a href="cart.html">تتبع الطلب</a>
                 </li>
             </ul>
 
@@ -136,7 +136,7 @@ input[type=number]::-webkit-outer-spin-button {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="item in cartItems" :key="item.id" class="product-row">
+                                <tr v-for="item in cartItemsRef" :key="item.id" class="product-row">
                                     <td>
                                         <figure class="product-image-container">
                                             <Link :href="route('web.product', item.id)" class="product-image">
@@ -153,9 +153,9 @@ input[type=number]::-webkit-outer-spin-button {
                                     <td>{{ item.product.price }}</td>
                                     <td>
                                         <div class="custom-qty-selector">
-                                            <button class="qty-btn" type="button" @click="item.quantity = Math.max(1, item.quantity - 1)">-</button>
-                                            <input type="number" min="1" :value="item.quantity" @input="e => item.quantity = Math.max(1, Number(e.target.value))" class="qty-input" />
-                                            <button class="qty-btn" type="button" @click="item.quantity++">+</button>
+                                            <button class="qty-btn" @click.prevent="removeQty(item)">-</button>
+                                            <input type="number" min="1" :value="item.quantity" class="qty-input" @change="updateQty(item, $event)" />
+                                            <button class="qty-btn" @click.prevent="addQty(item)">+</button>
                                         </div>
                                     </td>
                                     <td class="text-right"><span class="subtotal-price">{{ item.product.price * item.quantity }}</span></td>
@@ -163,103 +163,38 @@ input[type=number]::-webkit-outer-spin-button {
                             </tbody>
 
 
-                            <tfoot>
-                                <tr>
-                                    <td colspan="5" class="clearfix">
-                                        <div class="float-right">
-                                            <button type="submit" class="btn btn-shop btn-update-cart">
-                                                Update Cart
-                                            </button>
-                                        </div><!-- End .float-right -->
-                                    </td>
-                                </tr>
-                            </tfoot>
+                          
                         </table>
                     </div><!-- End .cart-table-container -->
                 </div><!-- End .col-lg-8 -->
 
                 <div class="col-lg-4">
                     <div class="cart-summary">
-                        <h3>CART TOTALS</h3>
+                        <h3> إجمالي الفاتورة </h3>
 
                         <table class="table table-totals">
                             <tbody>
                                 <tr>
-                                    <td>Subtotal</td>
-                                    <td>$17.90</td>
+                                    <td>المجموع الفرعي</td>
+                                    <td> {{  Number(totalPrice) }}</td>
                                 </tr>
-
                                 <tr>
-                                    <td colspan="2" class="text-left">
-                                        <h4>Shipping</h4>
-
-                                        <div class="form-group form-group-custom-control">
-                                            <div class="custom-control custom-radio">
-                                                <input type="radio" class="custom-control-input" name="radio"
-                                                    checked>
-                                                <label class="custom-control-label">Local pickup</label>
-                                            </div><!-- End .custom-checkbox -->
-                                        </div><!-- End .form-group -->
-
-                                        <div class="form-group form-group-custom-control mb-0">
-                                            <div class="custom-control custom-radio mb-0">
-                                                <input type="radio" name="radio" class="custom-control-input">
-                                                <label class="custom-control-label">Flat rate</label>
-                                            </div><!-- End .custom-checkbox -->
-                                        </div><!-- End .form-group -->
-
-                                        <form action="#">
-                                            <div class="form-group form-group-sm">
-                                                <label>Shipping to <strong>NY.</strong></label>
-                                                <div class="select-custom">
-                                                    <select class="form-control form-control-sm">
-                                                        <option value="USA">United States (US)</option>
-                                                        <option value="Turkey">Turkey</option>
-                                                        <option value="China">China</option>
-                                                        <option value="Germany">Germany</option>
-                                                    </select>
-                                                </div><!-- End .select-custom -->
-                                            </div><!-- End .form-group -->
-
-                                            <div class="form-group form-group-sm">
-                                                <div class="select-custom">
-                                                    <select class="form-control form-control-sm">
-                                                        <option value="NY">New York</option>
-                                                        <option value="CA">California</option>
-                                                        <option value="TX">Texas</option>
-                                                    </select>
-                                                </div><!-- End .select-custom -->
-                                            </div><!-- End .form-group -->
-
-                                            <div class="form-group form-group-sm">
-                                                <input type="text" class="form-control form-control-sm"
-                                                    placeholder="Town / City">
-                                            </div><!-- End .form-group -->
-
-                                            <div class="form-group form-group-sm">
-                                                <input type="text" class="form-control form-control-sm"
-                                                    placeholder="ZIP">
-                                            </div><!-- End .form-group -->
-
-                                            <button type="submit" class="btn btn-shop btn-update-total">
-                                                Update Totals
-                                            </button>
-                                        </form>
-                                    </td>
+                                    <td>توصيل</td>
+                                    <td>15</td>
                                 </tr>
                             </tbody>
-
                             <tfoot>
                                 <tr>
-                                    <td>Total</td>
-                                    <td>$17.90</td>
+                                    <td>الإجمالي</td>
+                                    <td>{{ Number(totalPrice) + 15 }}</td>
                                 </tr>
                             </tfoot>
                         </table>
 
                         <div class="checkout-methods">
-                            <a href="cart.html" class="btn btn-block btn-dark">Proceed to Checkout
-                                <i class="fa fa-arrow-right"></i></a>
+                            <button type="button" class="btn btn-block btn-dark" @click="createOrder">المتابعة إلى الدفع
+                                <i class="fa fa-arrow-right"></i>
+                            </button>
                         </div>
                     </div><!-- End .cart-summary -->
                 </div><!-- End .col-lg-4 -->
@@ -271,7 +206,7 @@ input[type=number]::-webkit-outer-spin-button {
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import FrontLayout from '@/Pages/Front/Theme1/Layout/App.vue';
@@ -297,18 +232,104 @@ const removeFromCart = (id) => {
     });
 };
 
+const updateQty = (item, event) => {
+    let newQty = parseInt(event.target.value);
+    if (isNaN(newQty) || newQty < 1) newQty = 1;
+    router.post(route('cart.update'), { id: item.id, quantity: newQty }, {
+        onSuccess: () => {
+            item.quantity = newQty;
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'تم تحديث الكمية',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+    });
+};
+
+const addQty = (item) => {
+    const newQty = item.quantity + 1;
+    router.post(route('cart.update'), { id: item.id, quantity: newQty }, {
+        onSuccess: () => {
+            item.quantity = newQty;
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'تم تحديث الكمية',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+    });
+};
+
+const removeQty = (item) => {
+    const newQty = item.quantity > 1 ? item.quantity - 1 : 1;
+    router.post(route('cart.update'), { id: item.id, quantity: newQty }, {
+        onSuccess: () => {
+            item.quantity = newQty;
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'تم تحديث الكمية',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+    });
+};
+
+
 // Props from the controller
 const props = defineProps({
     cartItems: Array,
     totalPrice: Number,
 });
 
-// Reactive data
-const selectedCategories = ref([]);
-const minPrice = ref(null);
-const maxPrice = ref(null);
-const sortBy = ref('latest');
-const perPage = ref(12);
+// متغير محلي reactive للسلة
+const cartItemsRef = ref(props.cartItems.map(item => ({ ...item })));
+
+// حساب subtotal و total ديناميكيًا بناءً على cartItemsRef
+const subtotal = computed(() => {
+    return cartItemsRef.value.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+});
+
+const shippingCost = 0;
+const total = computed(() => {
+    return subtotal.value + shippingCost;
+});
+
+// دالة لإنشاء الأوردر مباشرة عند الضغط على زر المتابعة
+const createOrder = () => {
+    router.post(route('order.create'), {
+        items: cartItemsRef.value,
+        total: total.value
+    }, {
+        onSuccess: () => {
+            Swal.fire({
+                icon: 'success',
+                title: 'تم إنشاء الطلب بنجاح',
+                showConfirmButton: false,
+                timer: 2000
+            });
+            // يمكن إعادة التوجيه لصفحة الطلبات أو صفحة الدفع
+            router.visit(route('client.myorders'));
+        },
+        onError: () => {
+            Swal.fire({
+                icon: 'error',
+                title: 'حدث خطأ أثناء إنشاء الطلب',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+    });
+};
 
 
 
