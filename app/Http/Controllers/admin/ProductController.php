@@ -23,7 +23,7 @@ class ProductController extends Controller
         }
 
         $result = [];
-        
+
         foreach ($categories as $category) {
             if ($category->parent_id == $parent_id) {
                 $result[] = [
@@ -31,13 +31,13 @@ class ProductController extends Controller
                     'name' => $prefix . $category->name,
                     'level' => strlen($prefix) / 2
                 ];
-                
+
                 // Get children recursively
                 $children = $this->buildHierarchicalCategories($categories, $category->id, $prefix . '-- ');
                 $result = array_merge($result, $children);
             }
         }
-        
+
         return $result;
     }
 
@@ -53,7 +53,7 @@ class ProductController extends Controller
                   ->orWhere('sku', 'like', '%' . $request->search . '%');
         }
 
-        $products = $query->paginate(10);
+        $products = $query->orderBy('created_at', 'desc')->paginate(10); 
 
         // Debug: Log the products data and trigger accessor
         Log::info('=== DEBUG PRODUCTS IN CONTROLLER ===');
@@ -153,7 +153,7 @@ class ProductController extends Controller
         if ($validated['discount_type'] !== 'none' && $validated['discount_value'] > 0) {
             $price = $validated['price'];
             $discountValue = $validated['discount_value'];
-            
+
             if ($validated['discount_type'] === 'fixed') {
                 $validated['sale_price'] = max(0, $price - $discountValue);
             } elseif ($validated['discount_type'] === 'percentage') {
@@ -268,7 +268,7 @@ class ProductController extends Controller
         if ($validated['discount_type'] !== 'none' && $validated['discount_value'] > 0) {
             $price = $validated['price'];
             $discountValue = $validated['discount_value'];
-            
+
             if ($validated['discount_type'] === 'fixed') {
                 $validated['sale_price'] = max(0, $price - $discountValue);
             } elseif ($validated['discount_type'] === 'percentage') {
@@ -283,7 +283,7 @@ class ProductController extends Controller
 
         // تحديث الخصائص
         $product->attributes()->detach(); // حذف الخصائص القديمة
-        
+
         if ($request->has('attributes') && is_array($request->attributes)) {
             foreach ($request->attributes as $attribute) {
                 $product->attributes()->attach($attribute['attribute_id'], [
@@ -303,14 +303,14 @@ class ProductController extends Controller
     public function destroy(string $id)
     {
         $product = Product::findOrFail($id);
-        
+
         // حذف الصور من storage قبل حذف المنتج
         if ($product->images && is_array($product->images)) {
             foreach ($product->images as $imagePath) {
                 // إزالة /storage/ من المسار للحصول على المسار الحقيقي
                 $relativePath = str_replace('/storage/', '', $imagePath);
                 $fullPath = storage_path('app/public/' . $relativePath);
-                
+
                 // التحقق من وجود الملف وحذفه
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
@@ -320,7 +320,7 @@ class ProductController extends Controller
                 }
             }
         }
-        
+
         $product->delete();
 
         return redirect()->route('admin.products.index')

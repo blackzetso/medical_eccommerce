@@ -140,7 +140,7 @@ input[type=number]::-webkit-outer-spin-button {
                                     <td>
                                         <figure class="product-image-container">
                                             <Link :href="route('web.product', item.id)" class="product-image">
-                                                <img :src="item.image ? item.image : '/default-placeholder.png'" alt="product">
+                                                <img :src="getProductImage(item.product)" width="273" height="273" :alt="item.product.name" />
                                             </Link>
                                             <Link :href="route('cart.remove', item.id)" class="btn-remove icon-cancel" title="Remove Product" @click.prevent="removeFromCart(item.id)"></Link>
                                         </figure>
@@ -163,7 +163,7 @@ input[type=number]::-webkit-outer-spin-button {
                             </tbody>
 
 
-                          
+
                         </table>
                     </div><!-- End .cart-table-container -->
                 </div><!-- End .col-lg-8 -->
@@ -331,21 +331,17 @@ const createOrder = () => {
     });
 };
 
-
-
-
-
-// const getProductImage = (product) => {
-//     if (product.images && product.images.length > 0) {
-//         let img = product.images[0];
-//         // إذا كان المسار لا يبدأ بـ http أو /
-//         if (!img.startsWith('http') && !img.startsWith('/')) {
-//             img = '/' + img;
-//         }
-//         return img;
-//     }
-//     return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
-// };
+const getProductImage = (cartItems) => {
+    if (cartItems.images && cartItems.images.length > 0) {
+        let img = cartItems.images[0];
+        // إذا كان المسار لا يبدأ بـ http أو /
+        if (!img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
+        }
+        return img;
+    }
+    return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
+};
 
 onMounted(() => {
     // Initialize component
