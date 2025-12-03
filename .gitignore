@@ -10,7 +10,7 @@
 /.nova
 /.phpunit.cache
 /.vscode
-/.zed
+/.zip
 /auth.json
 /node_modules
 /public/build
@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Exclude zip files (too large for GitHub)
+*.zip
+**/*.zip

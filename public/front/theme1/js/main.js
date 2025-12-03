@@ -215,7 +215,7 @@
 
 				var newDate;
 
-				// Split and created again for ie and edge 
+				// Split and created again for ie and edge
 				if ( !$this.data( 'relative' ) ) {
 					var untilDateArr = untilDate.split( ", " ), // data-until 2019, 10, 8 - yy,mm,dd
 						newDate = new Date( untilDateArr[ 0 ], untilDateArr[ 1 ] - 1, untilDateArr[ 2 ] );
@@ -553,17 +553,9 @@
 						}
 					} );
 
-					// Sticky Navbar
-					if ( $( '.sticky-navbar' ) && 576 > $( window ).width() ) {
-						var scrollTop = $( window ).scrollTop();
-
-						if ( scrollTop >= 300 ) {
-							$( '.sticky-navbar' ).addClass( 'fixed' );
-
-							// On Unsticky, unfix
-						} else {
-							$( '.sticky-navbar' ).removeClass( 'fixed' );
-						}
+					// Sticky Navbar: اجعلها دائمًا ثابتة على الموبايل
+					if ( $( '.sticky-navbar' ).length && $( window ).width() < 576 ) {
+						$( '.sticky-navbar' ).addClass( 'fixed' );
 					}
 
 					// if desktop
@@ -585,12 +577,13 @@
 						if ( options.mobile !== true && scrollTop + stickyOffset > options.offset + options.paddingTop ) {
 							$this.hasClass( 'fixed' ) || fixStickyHeader( $this, options, stickyOffset );
 							// stickyOffset += $this.outerHeight();
-
-							// On Unsticky, unfix
-						} else if ( options.mobile === false || $this.hasClass( 'fixed' ) || !isInitialised ) {
-							unfixStickyHeader( $this, options );
 						}
+						// لا تزيل الكلاس fixed للنافبار على الموبايل نهائيًا
 					} );
+					// Sticky Navbar: اجعلها دائمًا ثابتة على الموبايل
+					if ( $( '.sticky-navbar' ).length && $( window ).width() < 576 ) {
+						$( '.sticky-navbar' ).addClass( 'fixed' );
+					}
 				}
 			}
 
@@ -2345,9 +2338,6 @@
 
 		ProductSingle.prototype.variationMatch = function () {
 			var self = this;
-			self.$priceWrap.find( 'span' ).text( '$' + ( Math.round( Math.random() * 50 ) + 170 ) + '.00' );
-			self.$priceWrap.find( 'del span' ).text( '$' + ( Math.round( Math.random() * 50 ) + 200 ) + '.00' );
-			self.$priceWrap.slideDown();
 			self.$clean.slideDown();
 			self.$btnCart.removeClass( 'disabled' );
 		}
@@ -2360,7 +2350,6 @@
 				this.$btnCart.removeClass( 'added-to-cart' );
 			}
 
-			this.$priceWrap.slideUp();
 			this.$clean.slideUp();
 
 			this.$btnView.addClass( 'd-none' );

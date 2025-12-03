@@ -1,4 +1,20 @@
 <script setup>
+// دالة لإرجاع رابط صورة القسم بشكل صحيح
+const getCategoryImage = (category) => {
+  if (category.image) {
+    let img = category.image;
+    // إذا كان المسار يبدأ بـ http://uploads أو https://uploads، حوله لمسار نسبي
+    if (img.startsWith('http://uploads') || img.startsWith('https://uploads')) {
+      // استخراج اسم الصورة فقط
+      const parts = img.split('/');
+      img = '/uploads/categories/' + parts[parts.length - 1];
+    } else if (!img.startsWith('/')) {
+      img = '/uploads/categories/' + img;
+    }
+    return img;
+  }
+  return '/default-placeholder.png';
+};
 import { ref, watch } from 'vue'
 import CategoryCard from '@/Components/CategoryCard.vue'
 import AppLayout from '@/Pages/Admin/theme1/Layout/App.vue'
@@ -123,7 +139,7 @@ watch(search, (value) => {
                 <td>{{ index + 1 }}</td>
                 <td>
                   <CategoryCard
-                    :image="category.image ? '/' + category.image : '/default-placeholder.png'"
+                    :image="getCategoryImage(category)"
                     :name="category.name"
                   />
                 </td>

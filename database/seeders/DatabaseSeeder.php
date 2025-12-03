@@ -6,6 +6,7 @@ use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Database\Seeders\AdminSeeder;
+use Database\Seeders\FooterSettingsSeeder;
 use Phar;
 
 class DatabaseSeeder extends Seeder
@@ -21,6 +22,7 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             PharmacyCategoriesSeeder::class,
             PharmacyProductsSeeder::class,
+            FooterSettingsSeeder::class,
         ]);
     }
 }

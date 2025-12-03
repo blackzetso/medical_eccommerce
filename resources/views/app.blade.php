@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+@php
+    $locale = session('locale', app()->getLocale());
+    $dir = in_array($locale, ['ar', 'ar_SA', 'ar-EG']) ? 'rtl' : 'ltr';
+@endphp
+<html lang="{{ str_replace('_', '-', $locale) }}" dir="{{ $dir }}">
 
 <head>
     <meta charset="UTF-8">
@@ -48,16 +52,9 @@
     </style>
 </head>
 
-<body>
+<body class="{{ $dir === 'rtl' ? 'client-rtl' : 'client-ltr' }}">
     <!-- End .page-wrapper -->
     @inertia
-    <div class="loading-overlay">
-        <div class="bounce-loader">
-            <div class="bounce1"></div>
-            <div class="bounce2"></div>
-            <div class="bounce3"></div>
-        </div>
-    </div>
 
     <!-- End .mobile-menu-container -->
     <!-- Plugins JS File -->

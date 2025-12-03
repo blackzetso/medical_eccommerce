@@ -10,6 +10,16 @@ class Cart extends Model
         'user_id',
         'product_id',
         'quantity',
+        'unit_price',
+        'total_price',
+        'attributes',
+        'color',
+    ];
+
+    protected $casts = [
+        'attributes' => 'array',
+        'unit_price' => 'decimal:2',
+        'total_price' => 'decimal:2',
     ];
 
     public function user()

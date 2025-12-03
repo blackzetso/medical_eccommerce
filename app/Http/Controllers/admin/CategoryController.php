@@ -67,8 +67,8 @@ class CategoryController extends Controller
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $image->move(public_path('storage/categories'), $imageName);
-            $data['image'] = 'storage/categories/' . $imageName;
+            $image->move(public_path('uploads/categories'), $imageName);
+            $data['image'] = '/uploads/categories/' . $imageName;
         }
 
         Category::create($data);
@@ -127,8 +127,8 @@ class CategoryController extends Controller
 
             $image = $request->file('image');
             $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $image->move(public_path('storage/categories'), $imageName);
-            $data['image'] = 'storage/categories/' . $imageName;
+            $image->move(public_path('uploads/categories'), $imageName);
+            $data['image'] = '/uploads/categories/' . $imageName;
         }
 
         $category->update([

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -57,6 +58,104 @@ class OrderController extends Controller
             'user',
             'items.product:id,name,images,sku',
         ]);
+
+        // تجهيز بيانات الخصائص المختارة لكل منتج في الطلب
+        $productIds = $order->items->pluck('product_id')->unique()->values()->all();
+
+        $byProduct = [];
+        if (!empty($productIds)) {
+            $rows = DB::table('product_attributes')
+                ->whereIn('product_attributes.product_id', $productIds)
+                ->join('attributes', 'product_attributes.attribute_id', '=', 'attributes.id')
+                ->join('attribute_values', 'product_attributes.attribute_value_id', '=', 'attribute_values.id')
+                ->select(
+                    'product_attributes.product_id as product_id',
+                    'attributes.id as attribute_id',
+                    'attributes.name as attribute_name',
+                    'attributes.slug as attribute_slug',
+                    'attributes.type as attribute_type',
+                    'attribute_values.id as value_id',
+                    'attribute_values.value as value_value',
+                    'attribute_values.label as value_label',
+                    'attribute_values.color_code as value_color_code'
+                )
+                ->orderBy('attributes.sort_order')
+                ->orderBy('attribute_values.sort_order')
+                ->get();
+
+            foreach ($rows as $row) {
+                $pid = $row->product_id;
+                $attrId = $row->attribute_id;
+
+                if (!isset($byProduct[$pid])) {
+                    $byProduct[$pid] = [];
+                }
+
+                if (!isset($byProduct[$pid][$attrId])) {
+                    $byProduct[$pid][$attrId] = [
+                        'id' => $attrId,
+                        'name' => $row->attribute_name,
+                        'slug' => $row->attribute_slug,
+                        'type' => $row->attribute_type,
+                        'values' => [],
+                    ];
+                }
+
+                $byProduct[$pid][$attrId]['values'][] = [
+                    'id' => $row->value_id,
+                    'attribute_id' => $attrId,
+                    'value' => $row->value_value,
+                    'label' => $row->value_label,
+                    'color_code' => $row->value_color_code,
+                ];
+            }
+        }
+
+        // إضافة مصفوفة الخصائص المختارة لكل عنصر طلب
+        $order->items->transform(function ($item) use ($byProduct) {
+            $selectedAttributes = [];
+
+            // قراءة حقل attributes من عنصر الطلب بشكل صريح لتجنب التضارب مع خاصية Laravel الداخلية
+            $rawAttributes = $item->getAttribute('attributes');
+
+            // لو مافيش خصائص أصلاً نرجع العنصر كما هو
+            if (empty($rawAttributes)) {
+                $item->selected_attributes = [];
+                return $item;
+            }
+
+            // إذا كان المخزن JSON كنص، نحوله لمصفوفة
+            if (is_string($rawAttributes)) {
+                $decoded = json_decode($rawAttributes, true);
+                $rawAttributes = is_array($decoded) ? $decoded : [];
+            }
+
+            if (is_array($rawAttributes) && isset($byProduct[$item->product_id])) {
+                foreach ($rawAttributes as $attrId => $valueId) {
+                    if (!isset($byProduct[$item->product_id][$attrId])) {
+                        continue;
+                    }
+
+                    $attr = $byProduct[$item->product_id][$attrId];
+                    $value = collect($attr['values'])->firstWhere('id', (int) $valueId);
+
+                    if ($value) {
+                        $selectedAttributes[] = [
+                            'attribute_id' => $attrId,
+                            'attribute_name' => $attr['name'],
+                            'attribute_slug' => $attr['slug'],
+                            'value_id' => $value['id'],
+                            'value_label' => $value['label'] ?? $value['value'],
+                            'value_color_code' => $value['color_code'],
+                        ];
+                    }
+                }
+            }
+
+            $item->selected_attributes = $selectedAttributes;
+
+            return $item;
+        });
 
         return Inertia::render('Admin/theme1/Orders/Show', [
             'order' => $order,

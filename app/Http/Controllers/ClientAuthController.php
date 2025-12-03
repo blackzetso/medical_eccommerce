@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Lead;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,21 +29,32 @@ class ClientAuthController extends Controller
 
     public function showRegisterForm()
     {
-        return view('client.register');
+        return Inertia::render('Client/Signup');
     }
 
     public function register(Request $request)
     {
-        // تسجيل مستخدم جديد
+        // حفظ البيانات كـ lead بدلاً من إنشاء حساب مباشرة
         $request->validate([
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'required|string|max:20',
+            'pharmacy_name' => 'nullable|string|max:255',
+            'address' => 'nullable|string',
+            'notes' => 'nullable|string',
         ]);
-        $user = User::create([
+
+        // إنشاء lead جديد
+        Lead::create([
+            'name' => $request->name,
             'email' => $request->email,
-            'password' => bcrypt($request->password),
+            'phone' => $request->phone,
+            'pharmacy_name' => $request->pharmacy_name,
+            'address' => $request->address,
+            'notes' => $request->notes,
+            'status' => 'pending',
         ]);
-        Auth::guard('web')->login($user);
-        return redirect('/client/myorders');
+
+        return back()->with('success', 'شكراً لك! تم إرسال طلبك بنجاح. سيقوم فريقنا بالتواصل معك قريباً لإنشاء حسابك.');
     }
 }

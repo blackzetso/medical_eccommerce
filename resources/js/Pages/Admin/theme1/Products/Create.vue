@@ -34,7 +34,8 @@ const form = useForm({
   meta_title: '',
   meta_description: '',
   images: [],
-  attributes: []
+  attributes: [],
+  colors: [] // Add colors field to the form
 })
 
 const imagePreview = ref([])
@@ -173,6 +174,19 @@ function saveForm() {
     }
   })
 }
+
+const colorCount = ref(0); // عدد الألوان
+const colorInputs = ref([]); // قائمة الألوان
+
+// تحديث الحقول بناءً على عدد الألوان
+const updateColorInputs = () => {
+  colorInputs.value = Array.from({ length: colorCount.value }, (_, i) => form.colors[i] || "#000000");
+};
+
+// حفظ الألوان في الفورم
+const saveColorsToForm = () => {
+  form.colors = colorInputs.value;
+};
 </script>
 
 <template>
@@ -356,7 +370,7 @@ function saveForm() {
                 <!-- عرض كل خاصية مع قيمها -->
                 <div v-for="attribute in attributes" :key="attribute.id" class="mb-4 p-3 border rounded">
                   <h6 class="mb-3">{{ attribute.name }}</h6>
-                  
+
                   <div class="row g-2">
                     <div v-for="value in attribute.values" :key="value.id" class="col-md-3">
                       <div class="card h-100">
@@ -374,7 +388,7 @@ function saveForm() {
                               <strong>{{ value.value }}</strong>
                             </label>
                           </div>
-                          
+
                           <!-- تعديل السعر لهذه القيمة -->
                           <div v-if="isAttributeValueSelected(attribute.id, value.id)" class="mt-2">
                             <label class="form-label small">تعديل السعر ($):</label>
@@ -594,6 +608,34 @@ function saveForm() {
               placeholder="وصف المنتج في محركات البحث"
             ></textarea>
             <div v-if="form.errors.meta_description" class="text-danger">{{ form.errors.meta_description }}</div>
+          </div>
+
+          <!-- عدد الألوان -->
+          <div class="col-md-6">
+            <label class="form-label">عدد الألوان المتاحه</label>
+            <input
+              class="form-control"
+              type="number"
+              v-model="colorCount"
+              @input="updateColorInputs"
+              min="0"
+              placeholder="أدخل عدد الألوان"
+            />
+          </div>
+
+          <!-- إدخال الألوان -->
+          <div class="col-12" v-if="colorInputs.length > 0">
+            <label class="form-label">الألوان</label>
+            <div class="row g-2">
+              <div class="col-md-3" v-for="(color, index) in colorInputs" :key="index">
+                <input
+                  class="form-control form-control-color"
+                  type="color"
+                  v-model="colorInputs[index]"
+                  @change="saveColorsToForm"
+                />
+              </div>
+            </div>
           </div>
 
           <!-- زر الحفظ -->

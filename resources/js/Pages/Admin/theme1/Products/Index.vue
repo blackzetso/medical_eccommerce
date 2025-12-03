@@ -6,8 +6,10 @@ import { route } from 'ziggy-js'
 import { usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
+import { useTranslations } from '@/composables/translations'
 
 const page = usePage()
+const { t } = useTranslations()
 
 const props = defineProps({
   products: Object, 
@@ -30,22 +32,22 @@ onMounted(() => {
 // ✅ حذف منتج
 function confirmDelete(id) {
   Swal.fire({
-    title: 'هل أنت متأكد؟',
-    text: "لن تتمكن من التراجع عن هذا الإجراء!",
+    title: t('are_you_sure'),
+    text: t('this_action_cannot_be_undone'),
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#d33',
     cancelButtonColor: '#3085d6',
-    confirmButtonText: 'نعم، احذف',
-    cancelButtonText: 'إلغاء'
+    confirmButtonText: t('yes') + '، ' + t('delete'),
+    cancelButtonText: t('cancel')
   }).then((result) => {
     if (result.isConfirmed) {
       router.delete(route('admin.products.destroy', id), {
         onSuccess: () => {
-          Swal.fire('تم الحذف!', 'تم حذف المنتج بنجاح.', 'success')
+          Swal.fire(t('success'), t('product_deleted_successfully'), 'success')
         },
         onError: () => {
-          Swal.fire('خطأ!', 'حدثت مشكلة أثناء الحذف.', 'error')
+          Swal.fire(t('error'), t('operation_failed'), 'error')
         }
       })
     }
@@ -56,13 +58,13 @@ function confirmDelete(id) {
 function toggleStatus(id) {
   router.patch(route('admin.products.status', id), {}, {
     onSuccess: () => {
-      toast.success("تم تعديل حالة المنتج", {
+      toast.success(t('product_status_updated'), {
         position: "top-right",
         autoClose: 3000,
       })
     },
     onError: () => {
-      toast.error("حدثت مشكلة أثناء التحديث", {
+      toast.error(t('operation_failed'), {
         position: "top-right",
         autoClose: 3000,
       })
@@ -117,18 +119,21 @@ function renderStars(rating) {
       <!-- Title & Actions -->
       <div class="row mb-3">
         <div class="col-3">
-          <h1 class="h3 mb-0">المنتجات</h1>
+          <h1 class="h3 mb-0">{{ t('products') }}</h1>
         </div>
-        <div class="col-7">
+        <div class="col-5">
           <input
             class="form-control"
             v-model="search"
             name="search"
-            placeholder="ابحث عن منتج..."
+            :placeholder="t('search') + '...'"
           />
         </div>
-        <div class="col-2 text-center">
-          <Link :href="route('admin.products.create')" class="btn btn-success-soft btn-round">
+        <div class="col-4 text-center d-flex gap-2 justify-content-end">
+          <Link :href="route('admin.products.import')" class="btn btn-info-soft btn-round" :title="t('import_products')">
+            <i class="bi bi-upload"></i>
+          </Link>
+          <Link :href="route('admin.products.create')" class="btn btn-success-soft btn-round" :title="t('add_product')">
             <i class="bi bi-plus"></i>
           </Link>
         </div>
@@ -141,16 +146,16 @@ function renderStars(rating) {
             <thead>
               <tr class="text-center">
                 <th>#</th>
-                <th>الصورة</th>
-                <th>اسم المنتج</th>
-                <th>السعر</th>
-                <th>المخزون</th>
-                <th>القسم</th>
-                <th>العلامة التجارية</th>
-                <th>التقييم</th>
-                <th>مميز</th>
-                <th>الحالة</th>
-                <th>الإجراءات</th>
+                <th>{{ t('image') }}</th>
+                <th>{{ t('product_name') }}</th>
+                <th>{{ t('price') }}</th>
+                <th>{{ t('stock') }}</th>
+                <th>{{ t('categories') }}</th>
+                <th>{{ t('brands') }}</th>
+                <th>{{ t('reviews') }}</th>
+                <th>{{ t('is_featured') }}</th>
+                <th>{{ t('status') }}</th>
+                <th>{{ t('actions') }}</th>
               </tr>
             </thead>
 
@@ -210,13 +215,13 @@ function renderStars(rating) {
                 <!-- القسم -->
                 <td>
                   <span v-if="product.category">{{ product.category.name }}</span>
-                  <span v-else class="text-muted">بدون قسم</span>
+                  <span v-else class="text-muted">{{ t('no_data_available') }}</span>
                 </td>
 
                 <!-- العلامة التجارية -->
                 <td>
                   <span v-if="product.brand">{{ product.brand.name }}</span>
-                  <span v-else class="text-muted">بدون علامة</span>
+                  <span v-else class="text-muted">{{ t('no_data_available') }}</span>
                 </td>
 
                 <!-- التقييم -->
@@ -233,7 +238,7 @@ function renderStars(rating) {
                     class="badge"
                     :class="product.is_featured ? 'bg-warning' : 'bg-secondary'"
                   >
-                    {{ product.is_featured ? 'مميز' : 'عادي' }}
+                    {{ product.is_featured ? t('is_featured') : t('inactive') }}
                   </span>
                 </td>
 
@@ -270,7 +275,7 @@ function renderStars(rating) {
               <tr v-if="!props.products.data.length" class="text-center">
                 <td colspan="11" class="text-center py-4">
                   <i class="bi bi-inbox text-muted fs-4 d-block mb-2"></i>
-                  <span class="text-muted">لا توجد منتجات</span>
+                  <span class="text-muted">{{ t('no_data_available') }}</span>
                 </td>
               </tr>
             </tbody>

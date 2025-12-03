@@ -445,7 +445,7 @@ i.cart-empty {
 }
 
 .table-cart tr th.product-col {
-    width: 33%
+    width: 25%
 }
 
 .table-cart tr th.price-col {
@@ -513,11 +513,11 @@ i.cart-empty {
 }
 
 .checkout-progress-bar li.active a {
-    color: #08C
+    color: #08C !important;
 }
 
 .checkout-progress-bar li.active a:hover {
-    color: #08C
+    color: #08C !important;
 }
 
 .checkout-progress-bar li.active+li a {

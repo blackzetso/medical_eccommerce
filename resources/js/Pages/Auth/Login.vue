@@ -28,7 +28,15 @@ const submit = () => {
         ...data,
         remember: form.remember ? 'on' : '',
     })).post(route('login'), {
-        onFinish: () => form.reset('password'),
+        onSuccess: (page) => {
+            // If redirected to admin dashboard, force reload
+            if (page.url && page.url.includes('/admin/dashboard')) {
+                window.location.href = route('admin.dashboard.index');
+            }
+        },
+        onFinish: () => {
+            form.reset('password');
+        },
     });
 };
 </script>
@@ -49,22 +57,22 @@ const submit = () => {
                                 <p class="mb-0 h6 fw-light">Let's learn something new today!</p>
                             </div>
                             <!-- SVG Image -->
-                            <img src="/front/theme1/images/element/02.svg" class="mt-5" alt="">
+                            <img src="/admin/theme1/images/element/02.svg" class="mt-5" alt="">
                             <!-- Info -->
                             <div class="d-sm-flex mt-5 align-items-center justify-content-center">
                                 <!-- Avatar group -->
                                 <ul class="avatar-group mb-2 mb-sm-0">
                                     <li class="avatar avatar-sm">
-                                        <img class="avatar-img rounded-circle" src="/front/theme1/images/avatar/01.jpg" alt="avatar">
+                                        <img class="avatar-img rounded-circle" src="/admin/theme1/images/avatar/01.jpg" alt="avatar">
                                     </li>
                                     <li class="avatar avatar-sm">
-                                        <img class="avatar-img rounded-circle" src="/front/theme1/images/avatar/02.jpg" alt="avatar">
+                                        <img class="avatar-img rounded-circle" src="/admin/theme1/images/avatar/02.jpg" alt="avatar">
                                     </li>
                                     <li class="avatar avatar-sm">
-                                        <img class="avatar-img rounded-circle" src="/front/theme1/images/avatar/03.jpg" alt="avatar">
+                                        <img class="avatar-img rounded-circle" src="/admin/theme1/images/avatar/03.jpg" alt="avatar">
                                     </li>
                                     <li class="avatar avatar-sm">
-                                        <img class="avatar-img rounded-circle" src="/front/theme1/images/avatar/04.jpg" alt="avatar">
+                                        <img class="avatar-img rounded-circle" src="/admin/theme1/images/avatar/04.jpg" alt="avatar">
                                     </li>
                                 </ul>
                                 <!-- Content -->
@@ -79,7 +87,7 @@ const submit = () => {
                             <div class="col-sm-10 col-xl-8 m-auto">
                                 <!-- Title -->
                                 <span class="mb-0 fs-1">👋</span>
-                                <h1 class="fs-2">Login into Eduport!</h1>
+                                <h1 class="fs-2">Login into Medical Media!</h1>
                                 <p class="lead mb-4">Nice to see you! Please log in with your account.</p>
 
                                 <!-- Form START -->

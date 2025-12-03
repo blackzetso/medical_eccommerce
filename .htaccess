@@ -1,0 +1,8 @@
+# Source - https://stackoverflow.com/a
+# Posted by Muhammad Sumon Molla Selim
+# Retrieved 2025-12-02, License - CC BY-SA 3.0
+
+RewriteEngine on
+RewriteCond %{REQUEST_URI} !^public
+RewriteRule ^(.*)$ public/$1 [L]
+

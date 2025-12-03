@@ -43,7 +43,8 @@ class Product extends Model
         'manage_stock' => 'boolean',
         'in_stock' => 'boolean',
         'is_featured' => 'boolean',
-        'status' => 'boolean'
+        'status' => 'boolean',
+        'colors' => 'array' // Cast colors as an array
     ];
 
     /**

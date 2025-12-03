@@ -1,0 +1,19 @@
+.sticky-navbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: #fff;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 60px;
+}
+
+@media (max-width: 768px) {
+    .sticky-navbar {
+        display: flex !important;
+    }
+}

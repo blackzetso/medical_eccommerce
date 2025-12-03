@@ -54,8 +54,10 @@ class BrandController extends Controller
 
         // معالجة اللوجو
         if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->store('brands', 'public');
-            $validated['logo'] = '/storage/' . $path;
+            $logo = $request->file('logo');
+            $logoName = time() . '_' . uniqid() . '.' . $logo->getClientOriginalExtension();
+            $logo->move(public_path('uploads/brands'), $logoName);
+            $validated['logo'] = '/uploads/brands/' . $logoName;
         }
 
         Brand::create($validated);
@@ -104,8 +106,14 @@ class BrandController extends Controller
         // معالجة اللوجو
         $logo = $validated['existing_logo'] ?? $brand->logo;
         if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->store('brands', 'public');
-            $logo = '/storage/' . $path;
+            // حذف اللوجو القديم إذا كان موجود
+            if ($brand->logo && file_exists(public_path($brand->logo))) {
+                unlink(public_path($brand->logo));
+            }
+            $logoFile = $request->file('logo');
+            $logoName = time() . '_' . uniqid() . '.' . $logoFile->getClientOriginalExtension();
+            $logoFile->move(public_path('uploads/brands'), $logoName);
+            $logo = '/uploads/brands/' . $logoName;
         }
         $validated['logo'] = $logo;
 

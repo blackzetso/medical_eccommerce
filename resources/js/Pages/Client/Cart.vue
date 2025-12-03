@@ -95,6 +95,20 @@
     outline: none;
 }
 
+.cart-color-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.cart-color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    display: inline-block;
+}
+
 input[type=number] {
     -moz-appearance: textfield;
 }
@@ -114,22 +128,22 @@ input[type=number]::-webkit-outer-spin-button {
                 <li class="active">
                     <Link :href="route('client.cart')">سلة التسوق</Link>
                 </li>
-                <li>
-                    <Link :href="route('client.checkout')">الدفع</Link>
-                </li>
+                
                 <li class="disabled">
-                    <a href="cart.html">تتبع الطلب</a>
+                    <a href="javascript:void(0)">تتبع الطلب</a>
                 </li>
             </ul>
 
             <div class="row">
                 <div class="col-lg-8">
-                    <div class="cart-table-container">
+                    <div v-if="cartItemsRef.length" class="cart-table-container">
                         <table class="table table-cart">
                             <thead>
                                 <tr>
                                     <th class="thumbnail-col"></th>
                                     <th class="product-col">المنتج</th>
+                                    <th class="attributes-col">الخصائص</th>
+                                    <th class="color-col">اللون</th>
                                     <th class="price-col">السعر</th>
                                     <th class="qty-col">الكمية</th>
                                     <th class="text-right">الإجمالي</th>
@@ -150,7 +164,31 @@ input[type=number]::-webkit-outer-spin-button {
                                             <Link :href="route('web.product', item.id)">{{ item.product.name }}</Link>
                                         </h5>
                                     </td>
-                                    <td>{{ item.product.price }}</td>
+                                    <!-- عمود الخصائص -->
+                                    <td>
+                                        <ul v-if="getSelectedOptions(item).length" dir="rtl" class="list-unstyled mb-0">
+                                            <li v-for="opt in getSelectedOptions(item)" :key="opt.attribute_id">
+                                                <small class="text-muted">
+                                                    {{ opt.attribute_name }}:
+                                                    <span class="font-weight-bold">{{ opt.value_label }}</span>
+                                                    <span v-if="opt.price && Number(opt.price) > 0" class="text-success">
+                                                        (+{{ formatPrice(opt.price) }})
+                                                    </span>
+                                                </small>
+                                            </li>
+                                        </ul>
+                                    </td>
+                                    <!-- عمود اللون -->
+                                    <td>
+                                        <div v-if="item.color" class="cart-color-wrapper">
+                                            <span
+                                                class="cart-color-swatch"
+                                                :style="{ backgroundColor: getColorCss(item.color) }"
+                                                :title="item.color"
+                                            ></span>
+                                        </div>
+                                    </td>
+                                    <td>{{ formatPrice(item.unit_price ?? item.product.price) }}</td>
                                     <td>
                                         <div class="custom-qty-selector">
                                             <button class="qty-btn" @click.prevent="removeQty(item)">-</button>
@@ -158,14 +196,24 @@ input[type=number]::-webkit-outer-spin-button {
                                             <button class="qty-btn" @click.prevent="addQty(item)">+</button>
                                         </div>
                                     </td>
-                                    <td class="text-right"><span class="subtotal-price">{{ item.product.price * item.quantity }}</span></td>
+                                    <td class="text-right">
+                                        <span class="subtotal-price">
+                                            {{ formatPrice((item.unit_price ?? item.product.price) * item.quantity) }}
+                                        </span>
+                                    </td>
                                 </tr>
                             </tbody>
-
-
-
                         </table>
                     </div><!-- End .cart-table-container -->
+
+                    <!-- حالة السلة الفارغة -->
+                    <div v-else class="text-center py-5">
+                        <h4 class="mb-3">سلة المشتريات فارغة</h4>
+                        <p class="text-muted mb-4">لم تقم بإضافة أي منتجات حتى الآن.</p>
+                        <Link :href="route('web.products')" class="btn btn-outline-dark">
+                            ابدأ التسوق الآن
+                        </Link>
+                    </div>
                 </div><!-- End .col-lg-8 -->
 
                 <div class="col-lg-4">
@@ -176,7 +224,7 @@ input[type=number]::-webkit-outer-spin-button {
                             <tbody>
                                 <tr>
                                     <td>المجموع الفرعي</td>
-                                    <td> {{  Number(totalPrice) }}</td>
+                                    <td>{{ Number(subtotal) }}</td>
                                 </tr>
                                 <tr>
                                     <td>توصيل</td>
@@ -186,13 +234,13 @@ input[type=number]::-webkit-outer-spin-button {
                             <tfoot>
                                 <tr>
                                     <td>الإجمالي</td>
-                                    <td>{{ Number(totalPrice) + 15 }}</td>
+                                    <td>{{ Number(total) + 15 }}</td>
                                 </tr>
                             </tfoot>
                         </table>
 
                         <div class="checkout-methods">
-                            <button type="button" class="btn btn-block btn-dark" @click="createOrder">المتابعة إلى الدفع
+                            <button type="button" class="btn btn-block btn-dark" @click="createOrder">إتمام الطلب
                                 <i class="fa fa-arrow-right"></i>
                             </button>
                         </div>
@@ -294,9 +342,73 @@ const props = defineProps({
 // متغير محلي reactive للسلة
 const cartItemsRef = ref(props.cartItems.map(item => ({ ...item })));
 
+// تنسيق السعر
+const formatPrice = (price) => {
+    const num = Number(price) || 0;
+    return num.toFixed(2);
+};
+
+// تحويل قيمة اللون إلى قيمة صالحة للـ CSS (مع دعم بعض الأسماء العربية)
+const getColorCss = (color) => {
+    if (!color) return '#ccc';
+
+    const c = String(color).trim();
+    if (c.startsWith('#')) {
+        return c;
+    }
+
+    const map = {
+        'red': '#ff0000', 'أحمر': '#ff0000',
+        'blue': '#0000ff', 'أزرق': '#0000ff',
+        'green': '#00ff00', 'أخضر': '#00ff00',
+        'yellow': '#ffff00', 'أصفر': '#ffff00',
+        'white': '#ffffff', 'أبيض': '#ffffff',
+        'black': '#000000', 'أسود': '#000000',
+        'orange': '#ffa500', 'برتقالي': '#ffa500',
+        'purple': '#800080', 'بنفسجي': '#800080',
+        'pink': '#ffc0cb', 'وردي': '#ffc0cb',
+        'gray': '#808080', 'grey': '#808080', 'رمادي': '#808080',
+        'brown': '#a52a2a', 'بني': '#a52a2a',
+        'cyan': '#00ffff', 'سماوي': '#00ffff',
+        'magenta': '#ff00ff', 'أرجواني': '#ff00ff'
+    };
+
+    const lower = c.toLowerCase();
+    return map[lower] || c;
+};
+
+// إرجاع قائمة بالخصائص المختارة لكل عنصر في السلة
+const getSelectedOptions = (item) => {
+    if (!item || !item.product || !item.product.attributes || !item.attributes) {
+        return [];
+    }
+
+    const result = [];
+
+    item.product.attributes.forEach((attr) => {
+        const selectedValueId = item.attributes[attr.id];
+        if (!selectedValueId) return;
+
+        const value = attr.values?.find(v => v.id === selectedValueId);
+        if (!value) return;
+
+        result.push({
+            attribute_id: attr.id,
+            attribute_name: attr.name,
+            value_label: value.label || value.value || value.name,
+            price: value.price ?? 0,
+        });
+    });
+
+    return result;
+};
+
 // حساب subtotal و total ديناميكيًا بناءً على cartItemsRef
 const subtotal = computed(() => {
-    return cartItemsRef.value.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    return cartItemsRef.value.reduce((sum, item) => {
+        const unit = item.unit_price ?? item.product.price;
+        return sum + (unit * item.quantity);
+    }, 0);
 });
 
 const shippingCost = 0;
@@ -316,9 +428,7 @@ const createOrder = () => {
                 title: 'تم إنشاء الطلب بنجاح',
                 showConfirmButton: false,
                 timer: 2000
-            });
-            // يمكن إعادة التوجيه لصفحة الطلبات أو صفحة الدفع
-            router.visit(route('client.myorders'));
+            }); 
         },
         onError: () => {
             Swal.fire({

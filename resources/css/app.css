@@ -5,3 +5,77 @@
 [x-cloak] {
     display: none;
 } */
+
+/* Global client RTL/LTR helpers based on <html dir> */
+
+html[dir="rtl"] body.client-rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+html[dir="ltr"] body.client-ltr {
+    direction: ltr;
+    text-align: left;
+}
+
+/* Common utility flips for client in RTL */
+html[dir="rtl"] body.client-rtl .text-left {
+    text-align: right !important;
+}
+
+html[dir="rtl"] body.client-rtl .mr-0 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+html[dir="rtl"] body.client-rtl .mr-3 {
+    margin-left: 1rem !important;
+    margin-right: 0 !important;
+}
+
+html[dir="rtl"] body.client-rtl .ml-1 {
+    margin-right: 0.25rem !important;
+    margin-left: 0 !important;
+}
+
+/* Header icons alignment in RTL */
+html[dir="rtl"] body.client-rtl .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-start;
+}
+
+html[dir="rtl"] body.client-rtl .header-right .header-icon,
+html[dir="rtl"] body.client-rtl .header-right .btn {
+    margin-right: 0 !important;
+    margin-left: 8px !important;
+}
+
+/* Product title readability in RTL product page */
+html[dir="rtl"] body.client-rtl .product-single-details .product-title {
+    direction: rtl;
+    text-align: right;
+    letter-spacing: 0;
+}
+
+/* Keep sticky navbar behaviour (original styles) */
+.sticky-navbar {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .sticky-navbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+        background: #fff;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+        display: flex !important;
+        justify-content: space-around;
+        align-items: center;
+        height: 60px;
+    }
+}

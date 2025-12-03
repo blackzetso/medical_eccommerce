@@ -11,6 +11,7 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy'
 import VueApexCharts from 'vue3-apexcharts'
 import VueSweetalert2 from 'vue-sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
+import Vue3Toastify, { toast } from 'vue3-toastify'
 import 'vue3-toastify/dist/index.css'
 import { createPinia } from 'pinia'
 
@@ -32,7 +33,21 @@ createInertiaApp({
     app.use(plugin)
     app.use(ZiggyVue)
     app.use(VueApexCharts)
+    app.use(Vue3Toastify, {
+      autoClose: 3000,
+      position: 'top-right',
+      rtl: true,
+      pauseOnHover: true,
+      hideProgressBar: false,
+    })
     // .use(VueSweetalert2)
+
+    app.config.globalProperties.$toast = toast
+    app.provide('$toast', toast)
+
+    if (typeof window !== 'undefined') {
+      window.$toast = toast
+    }
 
     app.mount(el)
   },

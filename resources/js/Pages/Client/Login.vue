@@ -20,6 +20,11 @@ const submitting = ref(false)
 function submit() {
 	submitting.value = true
 	form.post(route('login'), {
+		onSuccess: (page) => {
+			if (page.url && page.url.includes('/admin/dashboard')) {
+				window.location.href = route('admin.dashboard.index');
+			}
+		},
 		onFinish: () => {
 			submitting.value = false
 		}

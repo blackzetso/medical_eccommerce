@@ -57,6 +57,7 @@ class LanguageController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:10|unique:languages,code',
+            'is_rtl' => 'sometimes|boolean',
         ]);
 
         try {
@@ -65,6 +66,7 @@ class LanguageController extends Controller
                 'name'   => $validated['name'],
                 'code'   => $validated['code'],
                 'status' => 'enabled',
+                'is_rtl' => $validated['is_rtl'] ?? false,
             ]);
 
             // ✅ جلب اللغة المرجعية (is_demo = 1)
@@ -118,10 +120,12 @@ class LanguageController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'code' => 'required|string|max:255',
+                'is_rtl' => 'sometimes|boolean',
             ]);
 
             $language->update([
                 'name' => $request->name,
+                'is_rtl' => $request->has('is_rtl') ? (bool)$request->is_rtl : $language->is_rtl,
             ]);
 
             return back()->with('success', 'تم تحديث اللغة بنجاح');

@@ -117,6 +117,7 @@
                                             <th>#</th>
                                             <th>Language Name</th>
                                             <th> is Default </th>
+                                            <th>RTL</th>
                                             <th>Enable/Disable</th>
                                             <th>Action</th>
                                             </tr>
@@ -129,7 +130,11 @@
                                                     <h6 class="mb-0">{{ language.name }}</h6>
                                                 </td>
                                                 <td>
-
+                                                    <span v-if="language.is_default" class="badge bg-primary">Default</span>
+                                                </td>
+                                                <td>
+                                                    <span v-if="language.is_rtl" class="badge bg-info">RTL</span>
+                                                    <span v-else class="badge bg-secondary">LTR</span>
                                                 </td>
                                                 <td>
                                                     <div class="form-check form-switch d-flex justify-content-center">

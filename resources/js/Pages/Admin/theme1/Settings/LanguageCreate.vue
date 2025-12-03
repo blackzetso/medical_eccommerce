@@ -10,7 +10,8 @@ const { t } = useTranslations()
 
 const form = useForm({
   name: '',
-  code: null
+  code: null,
+  is_rtl: false
 })
 
 function saveForm() {
@@ -47,6 +48,14 @@ function saveForm() {
             <label class="form-label">{{ t('language_code') }}</label>
             <input class="form-control" v-model="form.code" type="text" :placeholder="t('exalmple_ar_en_fr')" />
             <div v-if="form.errors.name" class="text-danger">{{ form.errors.name }}</div>
+          </div>
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" v-model="form.is_rtl" id="is_rtl" />
+              <label class="form-check-label" for="is_rtl">
+                RTL (Right to Left)
+              </label>
+            </div>
           </div>
 
           <!-- زر الحفظ -->

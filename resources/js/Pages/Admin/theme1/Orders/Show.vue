@@ -359,6 +359,8 @@ function getProductImage(product) {
                     <thead>
                       <tr>
                         <th>المنتج</th>
+                        <th>الخصائص</th>
+                        <th>اللون</th>
                         <th>الكمية</th>
                         <th>السعر</th>
                         <th>الإجمالي</th>
@@ -380,6 +382,45 @@ function getProductImage(product) {
                                 كود: {{ item.product_sku }}
                               </small>
                             </div>
+                          </div>
+                        </td>
+                        <!-- عمود الخصائص -->
+                        <td>
+                          <div v-if="item.selected_attributes && item.selected_attributes.length">
+                            <small
+                              v-for="attr in item.selected_attributes"
+                              :key="`${item.id}-attr-${attr.attribute_id}`"
+                              class="d-block text-muted"
+                            >
+                              {{ attr.attribute_name }}:
+                              <span v-if="attr.value_color_code" class="ms-1">
+                                <span
+                                  class="d-inline-block rounded-circle me-1"
+                                  :style="{
+                                    width: '10px',
+                                    height: '10px',
+                                    backgroundColor: attr.value_color_code,
+                                    border: '1px solid #ccc'
+                                  }"
+                                ></span>
+                              </span>
+                              {{ attr.value_label }}
+                            </small>
+                          </div>
+                        </td>
+                        <!-- عمود اللون -->
+                        <td>
+                          <div v-if="item.color" class="d-flex align-items-center">
+                            <span
+                              class="d-inline-block rounded-circle me-2"
+                              :style="{
+                                width: '16px',
+                                height: '16px',
+                                backgroundColor: item.color,
+                                border: '1px solid #ccc'
+                              }"
+                            ></span>
+                            <small class="text-muted">{{ item.color }}</small>
                           </div>
                         </td>
                         <td>{{ item.quantity }}</td>

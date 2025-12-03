@@ -8,8 +8,10 @@ use App\Models\Category;
 use App\Models\Brand;
 use App\Models\Attribute;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class ProductController extends Controller
 {
@@ -53,30 +55,18 @@ class ProductController extends Controller
                   ->orWhere('sku', 'like', '%' . $request->search . '%');
         }
 
-        $products = $query->orderBy('created_at', 'desc')->paginate(10); 
+        $products = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        // Debug: Log the products data and trigger accessor
-        Log::info('=== DEBUG PRODUCTS IN CONTROLLER ===');
-        foreach ($products as $product) {
-            Log::info('Product ID: ' . $product->id);
-            Log::info('Product name: ' . $product->name);
-            Log::info('Product images raw: ' . ($product->attributes['images'] ?? 'NULL'));
-            Log::info('Product images casted: ' . json_encode($product->images));
-            Log::info('Product images type: ' . gettype($product->images));
-        }
+        // تعديل الصور لإرسال رابط كامل
+        $products->getCollection()->transform(function ($product) {
+            if (is_array($product->images)) {
+                $product->images = array_map(fn($img) => asset('/' . ltrim($img, '/')), $product->images);
+            }
+            return $product;
+        });
 
         $categories = Category::where('status', true)->get();
         $brands = Brand::where('status', true)->get();
-
-        // Debug: Log data being sent to Inertia
-        Log::info('Data being sent to Inertia:', [
-            'products_count' => $products->count(),
-            'first_product' => $products->first() ? [
-                'id' => $products->first()->id,
-                'name' => $products->first()->name,
-                'images' => $products->first()->images
-            ] : null
-        ]);
 
         return Inertia::render('Admin/theme1/Products/Index', [
             'products' => $products,
@@ -108,14 +98,14 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => $request->input('name') ? 'required|string|max:255' : 'nullable',
             'name_en' => 'nullable|string|max:255',
             'slug' => 'required|string|max:255|unique:products',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
+            'price' => $request->input('price') ? 'required|numeric|min:0' : 'nullable',
             'sale_price' => 'nullable|numeric|min:0',
-            'discount_type' => 'required|in:none,fixed,percentage',
+            'discount_type' => $request->filled('discount_type') ? 'required|in:none,fixed,percentage' : 'nullable',
             'discount_value' => 'nullable|numeric|min:0',
             'stock_quantity' => 'required|integer|min:0',
             'manage_stock' => 'boolean',
@@ -128,29 +118,28 @@ class ProductController extends Controller
             'status' => 'boolean',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
+            'images' => 'required|array|min:1', // Ensure at least one image is uploaded
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             'attributes' => 'nullable|array',
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.attribute_value_id' => 'required|exists:attribute_values,id',
-            'attributes.*.price_adjustment' => 'nullable|numeric'
+            'attributes.*.price_adjustment' => 'nullable|numeric',
+            'colors' => 'nullable|array', // Validate colors as an optional array
         ]);
 
-        // معالجة الصور
+        // معالجة الصور ورفعها إلى public/uploads/products
         $images = [];
         if ($request->hasFile('images')) {
-            Log::info('Images found in request');
             foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
-                $images[] = '/storage/' . $path;
-                Log::info('Stored image at: ' . $path);
+                $filename = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
+                $image->move(public_path('uploads/products'), $filename);
+                $images[] = '/uploads/products/' . $filename;
             }
-        } else {
-            Log::info('No images found in request');
         }
         $validated['images'] = $images;
 
         // حساب sale_price بناءً على نوع الخصم
-        if ($validated['discount_type'] !== 'none' && $validated['discount_value'] > 0) {
+        if (isset($validated['discount_type']) && $validated['discount_type'] !== 'none' && isset($validated['discount_value']) && $validated['discount_value'] > 0) {
             $price = $validated['price'];
             $discountValue = $validated['discount_value'];
 
@@ -164,18 +153,24 @@ class ProductController extends Controller
             $validated['sale_price'] = null;
         }
 
-        Log::info('Final images array:', $images);
         $product = Product::create($validated);
 
+        // حفظ الألوان إذا تم تمريرها
+        if ($request->has('colors')) {
+            $product->colors = $validated['colors'];
+            $product->save();
+        }
+
         // حفظ الخصائص إذا تم تمريرها
-        if ($request->has('attributes') && is_array($request->attributes)) {
-            foreach ($request->attributes as $attribute) {
+        if ($request->has('attributes') && is_array($request->input('attributes'))) {
+            foreach ($request->input('attributes') as $attribute) {
                 $product->attributes()->attach($attribute['attribute_id'], [
                     'attribute_value_id' => $attribute['attribute_value_id'],
                     'price_adjustment' => $attribute['price_adjustment'] ?? 0
                 ]);
             }
         }
+
 
         return redirect()->route('admin.products.index')
                         ->with('success', 'تم إنشاء المنتج بنجاح');
@@ -195,13 +190,17 @@ class ProductController extends Controller
     public function edit(string $id)
     {
         $product = Product::with(['category', 'brand', 'attributes', 'attributeValues'])->findOrFail($id);
+        // تعديل الصور لإرسال رابط كامل
+        if (is_array($product->images)) {
+            $product->images = array_map(fn($img) => asset('/' . ltrim($img, '/')), $product->images);
+        }
         $hierarchicalCategories = $this->buildHierarchicalCategories();
         $brands = Brand::where('status', true)->get();
         $attributes = Attribute::with('values')->where('status', true)->get();
 
         // تحضير الخصائص الحالية للمنتج
         $productAttributes = [];
-        foreach ($product->attributes as $attribute) {
+        foreach ($product->attributes()->get() as $attribute) {
             $productAttributes[] = [
                 'attribute_id' => $attribute->id,
                 'attribute_value_id' => $attribute->pivot->attribute_value_id,
@@ -226,16 +225,16 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => $request->input('name') ? 'required|string|max:255' : 'nullable',
             'name_en' => 'nullable|string|max:255',
-            'slug' => 'required|string|max:255|unique:products,slug,' . $id,
+            'slug' => $request->input('slug') ? 'required|string|max:255|unique:products,slug,' . $id : 'nullable',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
+            'price' => $request->input('price') ? 'required|numeric|min:0' : 'nullable',
             'sale_price' => 'nullable|numeric|min:0',
-            'discount_type' => 'required|in:none,fixed,percentage',
+            'discount_type' => $request->filled('discount_type') ? 'required|in:none,fixed,percentage' : 'nullable',
             'discount_value' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
+            'stock_quantity' => $request->input('stock_quantity') ? 'required|integer|min:0' : 'nullable',
             'manage_stock' => 'boolean',
             'sku' => 'nullable|string|max:255|unique:products,sku,' . $id,
             'weight' => 'nullable|numeric|min:0',
@@ -247,25 +246,34 @@ class ProductController extends Controller
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
             'existing_images' => 'array',
+            'images' => $request->hasFile('images') ? 'required|array|min:1' : 'nullable|array', // Accept existing images if no new images are uploaded
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             'attributes' => 'nullable|array',
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.attribute_value_id' => 'required|exists:attribute_values,id',
-            'attributes.*.price_adjustment' => 'nullable|numeric'
+            'attributes.*.price_adjustment' => 'nullable|numeric',
+            'colors' => 'nullable|array', // Validate colors as an optional array
         ]);
 
-        // معالجة الصور الجديدة
+        // معالجة الصور الجديدة ورفعها إلى public/uploads/products
         $existingImages = $validated['existing_images'] ?? [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
-                $existingImages[] = '/storage/' . $path;
+                $filename = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
+                $image->move(public_path('uploads/products'), $filename);
+                $existingImages[] = '/uploads/products/' . $filename;
             }
         }
-        $validated['images'] = $existingImages;
+
+        // إذا لم يتم رفع صور جديدة، احتفظ بالصور الحالية إذا كانت موجودة
+        if (!$request->hasFile('images') && !empty($product->images)) {
+            $validated['images'] = $product->images;
+        } else {
+            $validated['images'] = $existingImages;
+        }
 
         // حساب sale_price بناءً على نوع الخصم
-        if ($validated['discount_type'] !== 'none' && $validated['discount_value'] > 0) {
+        if (isset($validated['discount_type']) && $validated['discount_type'] !== 'none' && isset($validated['discount_value']) && $validated['discount_value'] > 0) {
             $price = $validated['price'];
             $discountValue = $validated['discount_value'];
 
@@ -284,13 +292,19 @@ class ProductController extends Controller
         // تحديث الخصائص
         $product->attributes()->detach(); // حذف الخصائص القديمة
 
-        if ($request->has('attributes') && is_array($request->attributes)) {
-            foreach ($request->attributes as $attribute) {
+        if ($request->has('attributes') && is_array($request->input('attributes'))) {
+            foreach ($request->input('attributes') as $attribute) {
                 $product->attributes()->attach($attribute['attribute_id'], [
                     'attribute_value_id' => $attribute['attribute_value_id'],
                     'price_adjustment' => $attribute['price_adjustment'] ?? 0
                 ]);
             }
+        }
+
+        // تحديث الألوان إذا تم تمريرها
+        if ($request->has('colors')) {
+            $product->colors = $validated['colors'];
+            $product->save();
         }
 
         return redirect()->route('admin.products.index')
@@ -304,19 +318,12 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
-        // حذف الصور من storage قبل حذف المنتج
+        // حذف الصور من public/uploads/products قبل حذف المنتج
         if ($product->images && is_array($product->images)) {
             foreach ($product->images as $imagePath) {
-                // إزالة /storage/ من المسار للحصول على المسار الحقيقي
-                $relativePath = str_replace('/storage/', '', $imagePath);
-                $fullPath = storage_path('app/public/' . $relativePath);
-
-                // التحقق من وجود الملف وحذفه
+                $fullPath = public_path($imagePath);
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
-                    Log::info('Deleted image: ' . $fullPath);
-                } else {
-                    Log::warning('Image not found for deletion: ' . $fullPath);
                 }
             }
         }
@@ -336,5 +343,346 @@ class ProductController extends Controller
         $product->update(['status' => !$product->status]);
 
         return redirect()->back()->with('success', 'تم تعديل حالة المنتج');
+    }
+
+    /**
+     * Show the import form
+     */
+    public function import()
+    {
+        $categories = Category::where('status', true)->get(['id', 'name']);
+        $brands = Brand::where('status', true)->get(['id', 'name']);
+
+        return Inertia::render('Admin/theme1/Products/Import', [
+            'categories' => $categories,
+            'brands' => $brands
+        ]);
+    }
+
+    /**
+     * Download CSV template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'name',
+            'name_en',
+            'slug',
+            'description',
+            'short_description',
+            'price',
+            'sale_price',
+            'discount_type',
+            'discount_value',
+            'stock_quantity',
+            'manage_stock',
+            'sku',
+            'weight',
+            'dimensions',
+            'category_id',
+            'brand_id',
+            'is_featured',
+            'status',
+            'meta_title',
+            'meta_description'
+        ];
+
+        // Add UTF-8 BOM for proper Arabic support in Excel
+        $csvContent = "\xEF\xBB\xBF";
+        
+        // Add headers
+        $csvContent .= implode(',', $headers) . "\n";
+        
+        // Add sample row with Arabic text
+        $csvContent .= "منتج تجريبي,Test Product,test-product,وصف المنتج,وصف مختصر,100,80,percentage,20,50,true,SKU-001,1.5,10x10x5,1,1,false,true,عنوان SEO,وصف SEO\n";
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', 'attachment; filename="products_template.csv"');
+    }
+
+    /**
+     * Process CSV import
+     */
+    public function processImport(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // 10MB max
+        ]);
+
+        $file = $request->file('csv_file');
+        $path = $file->getRealPath();
+        
+        // Read file content with UTF-8 encoding
+        $content = file_get_contents($path);
+        
+        // Remove UTF-8 BOM if present
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        
+        // Convert to UTF-8 if not already
+        if (!mb_check_encoding($content, 'UTF-8')) {
+            $content = mb_convert_encoding($content, 'UTF-8', 'auto');
+        }
+        
+        // Normalize line endings
+        $content = str_replace(["\r\n", "\r"], "\n", $content);
+        
+        // Parse CSV - handle both comma and semicolon delimiters
+        $lines = explode("\n", $content);
+        $data = [];
+        foreach ($lines as $lineIndex => $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                // Try to detect delimiter
+                $delimiter = (substr_count($line, ',') > substr_count($line, ';')) ? ',' : ';';
+                $row = str_getcsv($line, $delimiter, '"', "\0");
+                
+                // Clean up the row - remove empty trailing elements
+                $row = array_map('trim', $row);
+                
+                if (!empty(array_filter($row, function($val) { return $val !== ''; }))) {
+                    $data[] = $row;
+                }
+            }
+        }
+
+        // Get headers (first row)
+        $headers = array_map('trim', $data[0]);
+        
+        // Remove header row
+        array_shift($data);
+
+        $results = [
+            'success' => 0,
+            'updated' => 0,
+            'failed' => 0,
+            'errors' => []
+        ];
+
+        // Check if we have data
+        if (empty($data)) {
+            return redirect()->route('admin.products.import')
+                ->with('error', 'الملف فارغ أو لا يحتوي على بيانات صحيحة');
+        }
+
+        DB::beginTransaction();
+        
+        try {
+            foreach ($data as $rowIndex => $row) {
+                $rowNumber = $rowIndex + 2; // +2 because we removed header and arrays are 0-indexed
+                
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Map row data to associative array
+                $rowData = [];
+                foreach ($headers as $index => $header) {
+                    $value = isset($row[$index]) ? trim($row[$index]) : '';
+                    // Remove quotes if present
+                    $value = trim($value, '"\'');
+                    // Normalize boolean values early
+                    if (in_array(strtolower($value), ['true', 'false', '1', '0', 'yes', 'no', 'on', 'off', 'y', 'n'])) {
+                        $value = strtolower($value);
+                    }
+                    $rowData[$header] = $value;
+                }
+
+                // Convert numeric fields early for validation
+                $rowData['price'] = !empty($rowData['price']) ? (float) str_replace(',', '', $rowData['price']) : 0;
+                $rowData['stock_quantity'] = isset($rowData['stock_quantity']) && $rowData['stock_quantity'] !== '' 
+                    ? (int) str_replace(',', '', $rowData['stock_quantity']) 
+                    : null;
+
+                // Validate required fields
+                $missingFields = [];
+                if (empty($rowData['name']) || trim($rowData['name']) === '') {
+                    $missingFields[] = 'name';
+                }
+                if (empty($rowData['slug']) || trim($rowData['slug']) === '') {
+                    $missingFields[] = 'slug';
+                }
+                if (empty($rowData['price']) || $rowData['price'] <= 0) {
+                    $missingFields[] = 'price (يجب أن يكون أكبر من 0)';
+                }
+                if ($rowData['stock_quantity'] === null || $rowData['stock_quantity'] < 0) {
+                    $missingFields[] = 'stock_quantity (يجب أن يكون رقم صحيح)';
+                }
+                
+                if (!empty($missingFields)) {
+                    $results['failed']++;
+                    $errorMsg = "الصف {$rowNumber}: الحقول المطلوبة مفقودة أو غير صحيحة: " . implode(', ', $missingFields);
+                    $results['errors'][] = $errorMsg;
+                    continue;
+                }
+
+                // Generate slug if not provided
+                if (empty($rowData['slug'])) {
+                    $rowData['slug'] = Str::slug($rowData['name']);
+                }
+
+                // Check if product exists by SKU first
+                $existingProduct = null;
+                if (!empty($rowData['sku'])) {
+                    $existingProduct = Product::where('sku', $rowData['sku'])->first();
+                }
+
+                // Ensure unique slug (only if product doesn't exist or slug is different)
+                $slug = $rowData['slug'];
+                $counter = 1;
+                while (Product::where('slug', $slug)->where(function($query) use ($existingProduct) {
+                    if ($existingProduct) {
+                        $query->where('id', '!=', $existingProduct->id);
+                    }
+                })->exists()) {
+                    $slug = $rowData['slug'] . '-' . $counter;
+                    $counter++;
+                }
+                $rowData['slug'] = $slug;
+
+                // Convert boolean strings - handle TRUE/FALSE, true/false, 1/0, yes/no
+                $manageStock = strtolower(trim($rowData['manage_stock'] ?? 'true'));
+                $rowData['manage_stock'] = in_array($manageStock, ['true', '1', 'yes', 'on', 'y'], true);
+                
+                $isFeatured = strtolower(trim($rowData['is_featured'] ?? 'false'));
+                $rowData['is_featured'] = in_array($isFeatured, ['true', '1', 'yes', 'on', 'y'], true);
+                
+                $status = strtolower(trim($rowData['status'] ?? 'true'));
+                $rowData['status'] = in_array($status, ['true', '1', 'yes', 'on', 'y'], true);
+
+                // Convert remaining numeric fields (price and stock_quantity already converted)
+                $rowData['sale_price'] = !empty($rowData['sale_price']) ? (float) str_replace(',', '', $rowData['sale_price']) : null;
+                $rowData['discount_value'] = !empty($rowData['discount_value']) ? (float) str_replace(',', '', $rowData['discount_value']) : null;
+                $rowData['weight'] = !empty($rowData['weight']) ? (float) str_replace(',', '', $rowData['weight']) : null;
+                $rowData['category_id'] = !empty($rowData['category_id']) && $rowData['category_id'] !== '' && $rowData['category_id'] !== '0'
+                    ? (int) $rowData['category_id'] 
+                    : null;
+                $rowData['brand_id'] = !empty($rowData['brand_id']) && $rowData['brand_id'] !== '' && $rowData['brand_id'] !== '0'
+                    ? (int) $rowData['brand_id'] 
+                    : null;
+
+                // Validate category_id exists
+                if (!empty($rowData['category_id'])) {
+                    $categoryExists = Category::where('id', $rowData['category_id'])->exists();
+                    if (!$categoryExists) {
+                        $results['failed']++;
+                        $errorMsg = "الصف {$rowNumber}: القسم المحدد غير موجود (category_id: {$rowData['category_id']})";
+                        $results['errors'][] = $errorMsg;
+                        continue;
+                    }
+                }
+
+                // Validate brand_id exists - if provided, it must exist
+                if (!empty($rowData['brand_id']) && $rowData['brand_id'] > 0) {
+                    $brandExists = Brand::where('id', $rowData['brand_id'])->exists();
+                    if (!$brandExists) {
+                        $results['failed']++;
+                        $errorMsg = "الصف {$rowNumber}: العلامة التجارية المحددة غير موجودة (brand_id: {$rowData['brand_id']})";
+                        $results['errors'][] = $errorMsg;
+                        continue;
+                    }
+                } else {
+                    // If brand_id is empty or 0, set it to null
+                    $rowData['brand_id'] = null;
+                }
+
+                // Calculate sale_price if discount is provided
+                if (!empty($rowData['discount_type']) && $rowData['discount_type'] !== 'none' && !empty($rowData['discount_value'])) {
+                    if ($rowData['discount_type'] === 'fixed') {
+                        $rowData['sale_price'] = max(0, $rowData['price'] - $rowData['discount_value']);
+                    } elseif ($rowData['discount_type'] === 'percentage') {
+                        $discountAmount = ($rowData['price'] * $rowData['discount_value']) / 100;
+                        $rowData['sale_price'] = max(0, $rowData['price'] - $discountAmount);
+                    }
+                }
+
+                // Set default images as empty array (user will add images manually later)
+                // Only if product doesn't exist, otherwise keep existing images
+                if (!$existingProduct) {
+                    // Ensure images is set as empty array, not null
+                    $rowData['images'] = [];
+                } else {
+                    // Keep existing images when updating - don't override
+                    unset($rowData['images']);
+                }
+                
+                // Ensure in_stock is set based on stock_quantity
+                $rowData['in_stock'] = ($rowData['stock_quantity'] ?? 0) > 0;
+
+                // If product exists, update it; otherwise create new
+                if ($existingProduct) {
+                    // Update existing product
+                    try {
+                        $existingProduct->update($rowData);
+                        $results['updated']++;
+                    } catch (\Exception $e) {
+                        $results['failed']++;
+                        $errorMsg = "الصف {$rowNumber}: فشل في تحديث المنتج - " . $e->getMessage();
+                        $results['errors'][] = $errorMsg;
+                        continue;
+                    }
+                } else {
+                    // Create new product
+                    try {
+                        // Final validation before create
+                        if (empty($rowData['name']) || empty($rowData['slug']) || $rowData['price'] <= 0) {
+                            throw new \Exception('بيانات غير صحيحة: name, slug, price مطلوبة');
+                        }
+                        
+                        $product = Product::create($rowData);
+                        $results['success']++;
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        $results['failed']++;
+                        $errorCode = $e->getCode();
+                        if ($errorCode == 23000) { // Duplicate entry
+                            $errorMsg = "الصف {$rowNumber}: المنتج موجود مسبقاً (slug أو SKU مكرر)";
+                        } else {
+                            $errorMsg = "الصف {$rowNumber}: خطأ في قاعدة البيانات - " . $e->getMessage();
+                        }
+                        $results['errors'][] = $errorMsg;
+                        continue;
+                    } catch (\Exception $e) {
+                        $results['failed']++;
+                        $errorMsg = "الصف {$rowNumber}: فشل في إنشاء المنتج - " . $e->getMessage();
+                        $results['errors'][] = $errorMsg;
+                        continue;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            // Build success message
+            $message = '';
+            if ($results['success'] > 0) {
+                $message .= "تم استيراد {$results['success']} منتج جديد. ";
+            }
+            if ($results['updated'] > 0) {
+                $message .= "تم تحديث {$results['updated']} منتج. ";
+            }
+            if ($results['failed'] > 0) {
+                $message .= "فشل استيراد {$results['failed']} منتج.";
+            }
+            if (empty($message)) {
+                $message = 'لم يتم استيراد أي منتجات. يرجى التحقق من البيانات.';
+            }
+
+            // Ensure errors array is always present
+            if (!isset($results['errors']) || !is_array($results['errors'])) {
+                $results['errors'] = [];
+            }
+
+            return redirect()->route('admin.products.import')
+                ->with('import_results', $results)
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return redirect()->route('admin.products.import')
+                ->with('error', 'حدث خطأ أثناء الاستيراد: ' . $e->getMessage())
+                ->with('import_results', $results);
+        }
     }
 }

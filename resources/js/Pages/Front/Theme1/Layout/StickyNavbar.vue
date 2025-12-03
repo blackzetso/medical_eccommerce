@@ -1,31 +1,31 @@
 <template>
-    <div class="sticky-navbar">
+    <div class="sticky-navbar fixed">
         <div class="sticky-info">
-            <a href="demo3.html">
-                <i class="icon-home"></i>Home
-            </a>
+            <Link :href="route('/')">
+                <i class="icon-home"></i>الرئيسية
+            </Link>
         </div>
         <div class="sticky-info">
-            <a href="demo3-shop.html" class="">
-                <i class="icon-bars"></i>Categories
-            </a>
+            <Link :href="route('web.categories')" class="">
+                <i class="icon-bars"></i>الفئات
+            </Link>
         </div>
         <div class="sticky-info">
-            <a href="wishlist.html" class="">
-                <i class="icon-wishlist-2"></i>Wishlist
-            </a>
+            <Link :href="route('client.favorites')" class="">
+                <i class="icon-wishlist-2"></i>قائمة الرغبات
+            </Link>
         </div>
         <div class="sticky-info">
-            <a href="login.html" class="">
-                <i class="icon-user-2"></i>Account
-            </a>
+            <Link :href="route('client.dashboard')" class="">
+                <i class="icon-user-2"></i>الحساب
+            </Link>
         </div>
         <div class="sticky-info">
-            <a href="cart.html" class="">
+            <Link :href="route('client.cart')" class="">
                 <i class="icon-shopping-cart position-relative">
                     <span class="cart-count badge-circle">3</span>
-                </i>Cart
-            </a>
+                </i> سلة المشتريات
+            </Link>
         </div>
     </div>
 </template>

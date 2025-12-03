@@ -1,0 +1,15 @@
+﻿name,name_en,slug,description,short_description,price,sale_price,discount_type,discount_value,stock_quantity,manage_stock,sku,weight,dimensions,category_id,brand_id,is_featured,status,meta_title,meta_description
+منتج تجريبي,Test Product,test-product,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-001,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product2,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-002,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product3,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-003,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product4,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-004,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product5,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-005,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product6,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-006,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product7,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-007,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product8,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-008,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product9,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-009,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product10,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-0010,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product11,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-0011,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product12,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-0012,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product13,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-0013,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO
+منتج تجريبي,Test Product,test-product14,وصف المنتج,وصف مختصر,100,80,percentage,20,50,TRUE,SKU-0014,1.5,10x10x5,1,1,FALSE,TRUE,عنوان SEO,وصف SEO

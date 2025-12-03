@@ -25,7 +25,8 @@ function updateLanguage() {
   router.put(route('admin.language.update', form.id), {
     type: 'language',
     code : form.code,
-    name: form.name
+    name: form.name,
+    is_rtl: form.is_rtl || false
   }, {
     onSuccess: () => {
       toast.success('تم حفظ اللغة بنجاح ✅', {
@@ -99,6 +100,14 @@ function saveWord(word) {
                 <button type="submit" class="btn btn-success-soft w-100 ">
                   {{ t('save') }}
                 </button>
+              </div>
+              <div class="col-12 mt-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" v-model="form.is_rtl" id="is_rtl_edit" />
+                  <label class="form-check-label" for="is_rtl_edit">
+                    RTL (Right to Left)
+                  </label>
+                </div>
               </div>
             </form>
             <hr class="mb-4  mt-4" >

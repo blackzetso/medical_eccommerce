@@ -24,13 +24,13 @@
             <div class="row">
                 <div class="col-lg-12 main-content">
                     <!-- Products Grid -->
-                    <div class="row" v-if="products && products.length > 0">
-                        <div v-for="product in products" :key="product.id" class="col-6 col-sm-4 col-md-3 col-xl-5col">
+                    <div class="row" v-if="allProducts && allProducts.length > 0">
+                        <div v-for="product in allProducts" :key="product.id" class="col-6 col-sm-4 col-md-3 col-xl-5col">
                             <div class="product-default inner-quickview inner-icon">
                                 <figure>
-                                    <a href="#">
+                                    <Link :href="route('web.product', product.id)">
                                         <img :src="getProductImage(product)" width="273" height="273" :alt="product.name" />
-                                    </a>
+                                    </Link>
                                     <div class="label-group" v-if="product.is_featured || product.sale_price">
                                         <div v-if="product.is_featured" class="product-label label-hot">جديد</div>
                                         <div v-if="product.sale_price" class="product-label label-sale">تخفيض</div>
@@ -40,16 +40,16 @@
                                             <i class="icon-shopping-cart"></i>
                                         </a>
                                     </div>
-                                    <a href="#" class="btn-quickview" title="عرض سريع">عرض سريع</a>
+                                    <!-- <Link :href="route('web.product', product.id)" class="btn-quickview" title="عرض سريع" @click="hideLoadingOverlay">عرض سريع</Link> -->
                                 </figure>
                                 <div class="product-details">
                                     <div class="category-wrap">
                                         <div class="category-list">
-                                            <a href="#" class="product-category">{{ product.category?.name || 'عام' }}</a>
+                                            <Link :href="route('web.category', product.category?.id)" class="product-category">{{ product.category?.name || 'عام' }}</Link>
                                         </div>
                                     </div>
                                     <h3 class="product-title">
-                                        <a href="#">{{ product.name }}</a>
+                                        <Link :href="route('web.product', product.id)">{{ product.name }}</Link>
                                     </h3>
 
                                     <div class="price-box">
@@ -62,34 +62,22 @@
                     </div>
 
                     <!-- Empty State -->
-                    <div v-else class="text-center py-5">
+                    <div v-else-if="!loading" class="text-center py-5">
                         <i class="icon-folder-open" style="font-size: 4rem; color: #ccc; margin-bottom: 1rem;"></i>
                         <h3>لا توجد منتجات</h3>
                         <p class="text-muted">لم يتم العثور على منتجات في هذا القسم حالياً.</p>
                     </div>
 
-                    <!-- Pagination -->
-                    <nav v-if="products && products.length > 0" class="toolbox toolbox-pagination">
+                    <!-- Loading Indicator -->
+                    <div v-if="loading" class="text-center py-5">
+                        <div class="loading-spinner">
+                            <i class="icon-spinner icon-spin" style="font-size: 2rem; color: #667eea;"></i>
+                            <p class="mt-3">جاري تحميل المزيد من المنتجات...</p>
+                        </div>
+                    </div>
 
-
-                        <ul class="pagination toolbox-item" v-if="pagination && pagination.last_page > 1">
-                            <li class="page-item" :class="{ active: pagination.current_page === 1 }">
-                                <a class="page-link" href="#">1 <span v-if="pagination.current_page === 1" class="sr-only">(current)</span></a>
-                            </li>
-                            <li v-if="pagination.last_page > 1" class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li v-if="pagination.last_page > 2" class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li v-if="pagination.last_page > 3" class="page-item">
-                                <span class="page-link">...</span>
-                            </li>
-                            <li v-if="pagination.current_page < pagination.last_page" class="page-item">
-                                <a class="page-link page-link-btn" href="#"><i class="icon-angle-right"></i></a>
-                            </li>
-                        </ul>
-                    </nav>
+                    <!-- Scroll Trigger Element -->
+                    <div ref="scrollTrigger" class="scroll-trigger" v-if="hasMore && !loading"></div>
                 </div><!-- End .main-content -->
 
 
@@ -99,10 +87,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import FrontLayout from '@/Pages/Front/Theme1/Layout/App.vue';
+import { usePage } from '@inertiajs/vue3';
 
 // Props from the controller
 const props = defineProps({
@@ -118,22 +107,84 @@ const props = defineProps({
     }
 });
 
-// Reactive data
-const selectedCategories = ref([]);
-const minPrice = ref(null);
-const maxPrice = ref(null);
-const sortBy = ref('latest');
-const perPage = ref(12);
+const page = usePage();
+
+// Reactive data for infinite scroll
+const allProducts = ref([...props.products]);
+const currentPage = ref(props.pagination?.current_page || 1);
+const hasMore = ref(props.pagination?.last_page > props.pagination?.current_page || false);
+const loading = ref(false);
+const scrollTrigger = ref(null);
+let observer = null;
+
+// Watch for new products from props (when page changes)
+watch(() => props.products, (newProducts) => {
+    if (newProducts && newProducts.length > 0) {
+        // Check if these are new products or the same page
+        const newProductIds = newProducts.map(p => p.id);
+        const existingIds = allProducts.value.map(p => p.id);
+        
+        // Only add products that don't already exist
+        const uniqueProducts = newProducts.filter(p => !existingIds.includes(p.id));
+        if (uniqueProducts.length > 0) {
+            allProducts.value = [...allProducts.value, ...uniqueProducts];
+        }
+    }
+    
+    // Update pagination state
+    currentPage.value = props.pagination?.current_page || 1;
+    hasMore.value = props.pagination?.last_page > props.pagination?.current_page || false;
+    loading.value = false;
+}, { deep: true });
 
 // Methods
-const filterProducts = () => {
-    // Implement product filtering logic here
-    console.log('Filtering products...');
+const loadMoreProducts = () => {
+    if (loading.value || !hasMore.value) return;
+    
+    loading.value = true;
+    const nextPage = currentPage.value + 1;
+    
+    // Build the URL with query parameters
+    let url;
+    if (props.category?.id) {
+        url = route('web.category', props.category.id);
+    } else {
+        url = route('web.products');
+    }
+    
+    const params = new URLSearchParams();
+    params.append('page', nextPage);
+    
+    router.get(`${url}?${params.toString()}`, {}, {
+        preserveScroll: true,
+        preserveState: true,
+        only: ['products', 'pagination'],
+        onSuccess: () => {
+            // State will be updated via watch
+        },
+        onError: () => {
+            loading.value = false;
+        }
+    });
 };
 
-import { router } from '@inertiajs/vue3';
-
-import { usePage } from '@inertiajs/vue3';
+const setupIntersectionObserver = () => {
+    if (!scrollTrigger.value) return;
+    
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && hasMore.value && !loading.value) {
+                loadMoreProducts();
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '200px',
+        threshold: 0.1
+    });
+    
+    observer.observe(scrollTrigger.value);
+};
 
 const addToCart = (product) => {
     router.post(route('cart.add'), {
@@ -142,10 +193,8 @@ const addToCart = (product) => {
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            const success = usePage().props.flash?.success;
+            const success = page.props.flash?.success;
             if (success) {
-                // استخدم مكتبة toaster مثل vue-toastification أو أي مكتبة لديك
-                // مثال:
                 if (window.$toast) {
                     window.$toast.success(success);
                 } else {
@@ -177,7 +226,42 @@ onMounted(() => {
     if (props.category) {
         console.log('Current category:', props.category);
     }
+    
+    // Setup intersection observer after a short delay to ensure DOM is ready
+    setTimeout(() => {
+        setupIntersectionObserver();
+    }, 500);
+});
+
+onUnmounted(() => {
+    if (observer) {
+        observer.disconnect();
+    }
 });
 </script>
+
+<style scoped>
+.scroll-trigger {
+    height: 20px;
+    width: 100%;
+}
+
+.loading-spinner {
+    padding: 40px 0;
+}
+
+.loading-spinner i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+</style>
 
 

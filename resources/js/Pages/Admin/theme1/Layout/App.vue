@@ -1,15 +1,39 @@
 <script setup>
-    import { Link } from '@inertiajs/vue3'
-    import { usePage } from '@inertiajs/vue3'
+    import { Link, usePage } from '@inertiajs/vue3'
     import { router } from '@inertiajs/vue3'
     import { route } from 'ziggy-js';
+    import { useTranslations } from '@/composables/translations'
+
+    const page = usePage()
+    const { t } = useTranslations()
+    const languages = Array.isArray(page.props.languages) 
+        ? page.props.languages.filter(lang => lang !== null && lang !== undefined)
+        : []
+    const currentLocale = page.props.locale || 'ar'
+    
+    // Debug: Check if languages and translations are available
+    if (import.meta.env.DEV) {
+        console.log('=== ADMIN TRANSLATION DEBUG ===')
+        console.log('Languages from props:', page.props.languages)
+        console.log('Filtered languages:', languages)
+        console.log('Languages count:', languages.length)
+        console.log('Current locale:', currentLocale)
+        console.log('Translations from props:', page.props.translations)
+        console.log('Translations count:', Object.keys(page.props.translations || {}).length)
+        console.log('Sample translation keys:', Object.keys(page.props.translations || {}).slice(0, 5))
+    }
 
     function changeLang(lang) {
         router.post(route('change.language'), { lang })
     }
 
-    import { useTranslations } from '@/composables/translations'
-    const { t } = useTranslations()
+    function handleLogout() {
+        router.post(route('logout'), {}, {
+            onFinish: () => {
+                router.visit(route('login'));
+            }
+        });
+    }
 </script>
 <template>
     <!-- **************** MAIN CONTENT START **************** -->
@@ -26,13 +50,13 @@
             <!-- Navbar brand for xl END -->
 
             <div class="offcanvas offcanvas-start flex-row custom-scrollbar h-100" data-bs-backdrop="true" tabindex="-1" id="offcanvasSidebar">
-                <div class="offcanvas-body sidebar-content d-flex flex-column bg-dark">
+                <div class="offcanvas-body sidebar-content d-flex flex-column bg-dark sidebar-scrollable">
 
                     <!-- Sidebar menu START -->
-                    <ul class="navbar-nav flex-column" id="navbar-sidebar">
+                    <ul class="navbar-nav flex-column flex-grow-1" id="navbar-sidebar" style="overflow-y: auto; overflow-x: hidden; min-height: 0; max-height: 100%;">
 
                         <!-- Menu item 1 -->
-                        <li class="nav-item"><Link :href="route('admin.dashboard.index')" class="nav-link active"><i class="bi bi-house fa-fw me-2"></i>Dashboard</Link></li>
+                        <li class="nav-item"><Link :href="route('admin.dashboard.index')" class="nav-link active"><i class="bi bi-house fa-fw me-2"></i>{{ t('dashboard') }}</Link></li>
 
                         <!-- Title -->
                         <li class="nav-item ms-2 my-2">E-Commerce</li>
@@ -45,81 +69,86 @@
                             <!-- Submenu -->
                             <ul class="nav collapse flex-column" id="collapseproducts" data-bs-parent="#navbar-sidebar">
                                 <li class="nav-item"> <Link class="nav-link" :href="route('admin.products.index')">{{ t('all_products') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.products.import')"><i class="bi bi-upload me-2"></i>{{ t('import_products') }}</Link></li>
                                 <li class="nav-item"> <Link class="nav-link" :href="route('admin.categories.index')">{{ t('categories') }}</Link></li>
                                 <li class="nav-item"> <Link class="nav-link" :href="route('admin.brands.index')">{{ t('brands') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.attributes.index')">الخصائص</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.attributes.index')">{{ t('specifications') }}</Link></li>
                             </ul>
                         </li>
 
                         <!-- Menu item 3 -->
-                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.orders.index')"><i class="fas fa-shopping-cart fa-fw me-2"></i>الطلبات</Link></li>
+                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.orders.index')"><i class="fas fa-shopping-cart fa-fw me-2"></i>{{ t('orders') }}</Link></li>
 
                         <!-- Menu item 4 -->
                         <li class="nav-item"> <Link class="nav-link" :href="route('admin.sliders.index')"><i class="fas fa-images fa-fw me-2"></i>{{ t('sliders') }}</Link></li>
 
-                        <!-- Menu item 4 -->
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="collapse" href="#collapseinstructors" role="button" aria-expanded="false" aria-controls="collapseinstructors">
-                                <i class="fas fa-user-tie fa-fw me-2"></i>Instructors
-                            </a>
-                            <!-- Submenu -->
-                            <ul class="nav collapse flex-column" id="collapseinstructors" data-bs-parent="#navbar-sidebar">
-                                <li class="nav-item"> <a class="nav-link" href="admin-instructor-list.html">Instructors</a></li>
-                                <li class="nav-item"> <a class="nav-link" href="admin-instructor-detail.html">Instructor Detail</a></li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="admin-instructor-request.html">Instructor requests
-                                        <span class="badge text-bg-success rounded-circle ms-2">2</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
+                        <!-- Title -->
+                        <li class="nav-item ms-2 my-2">{{ t('clients') }}</li>
 
                         <!-- Menu item 5 -->
-                        <li class="nav-item"> <a class="nav-link" href="admin-review.html"><i class="far fa-comment-dots fa-fw me-2"></i>Reviews</a></li>
+                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.clients.index')"><i class="fas fa-users fa-fw me-2"></i>{{ t('clients') }}</Link></li>
+
+                        <!-- Menu item 5.1 -->
+                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.leads.index')"><i class="fas fa-user-plus fa-fw me-2"></i>طلبات التسجيل</Link></li>
+
+                        <!-- Title -->
+                        <li class="nav-item ms-2 my-2">{{ t('reports') }}</li>
 
                         <!-- Menu item 6 -->
-                        <li class="nav-item"> <a class="nav-link" href="admin-earning.html"><i class="far fa-chart-bar fa-fw me-2"></i>Earnings</a></li>
-
-                        <!-- Menu item 7 -->
-                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.index')"><i class="fas fa-user-cog fa-fw me-2"></i>Admin Settings</Link></li>
-
-                        <!-- Menu item 8 -->
                         <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="collapse" href="#collapseauthentication" role="button" aria-expanded="false" aria-controls="collapseauthentication">
-                                <i class="bi bi-lock fa-fw me-2"></i>Authentication
+                            <a class="nav-link" data-bs-toggle="collapse" href="#collapsereports" role="button" aria-expanded="false" aria-controls="collapsereports">
+                                <i class="far fa-chart-bar fa-fw me-2"></i>{{ t('reports') }}
                             </a>
                             <!-- Submenu -->
-                            <ul class="nav collapse flex-column" id="collapseauthentication" data-bs-parent="#navbar-sidebar">
-                                <li class="nav-item"> <a class="nav-link" href="sign-up.html">Sign Up</a></li>
-                                <li class="nav-item"> <a class="nav-link" href="sign-in.html">Sign In</a></li>
-                                <li class="nav-item"> <a class="nav-link" href="forgot-password.html">Forgot Password</a></li>
-                                <li class="nav-item"> <a class="nav-link" href="admin-error-404.html">Error 404</a></li>
+                            <ul class="nav collapse flex-column" id="collapsereports" data-bs-parent="#navbar-sidebar">
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.sales')">{{ t('reports') }} {{ t('sales') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.products')">{{ t('reports') }} {{ t('products') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.customers')">{{ t('reports') }} {{ t('clients') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.orders')">{{ t('reports') }} {{ t('orders') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.revenue')">{{ t('reports') }} {{ t('revenue') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.inventory')">{{ t('reports') }} {{ t('inventory') }}</Link></li>
                             </ul>
                         </li>
 
                         <!-- Title -->
-                        <li class="nav-item ms-2 my-2">Documentation</li>
+                        <li class="nav-item ms-2 my-2">{{ t('settings') }}</li>
 
-                        <!-- Menu item 9 -->
-                        <li class="nav-item"> <a class="nav-link" href="docs/index.html"><i class="far fa-clipboard fa-fw me-2"></i>Documentation</a></li>
-
-                        <!-- Menu item 10 -->
-                        <li class="nav-item"> <a class="nav-link" href="docs/changelog.html"><i class="fas fa-sitemap fa-fw me-2"></i>Changelog</a></li>
+                        <!-- Menu item 7 -->
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="collapse" href="#collapsesettings" role="button" aria-expanded="false" aria-controls="collapsesettings">
+                                <i class="fas fa-cog fa-fw me-2"></i>{{ t('settings') }}
+                            </a>
+                            <!-- Submenu -->
+                            <ul class="nav collapse flex-column" id="collapsesettings" data-bs-parent="#navbar-sidebar">
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.index')">{{ t('general_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.appearance')">{{ t('appearance_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.email')">{{ t('email_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.payment')">{{ t('payment_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.shipping')">{{ t('shipping_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.notification')">{{ t('notification_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.language.index')">{{ t('languages') }}</Link></li>
+                            </ul>
+                        </li>
                     </ul>
                     <!-- Sidebar menu end -->
 
                     <!-- Sidebar footer START -->
-                    <div class="px-3 mt-auto pt-3">
-                        <div class="d-flex align-items-center justify-content-between text-primary-hover">
-                                <a class="h5 mb-0 text-body" href="admin-setting.html" data-bs-toggle="tooltip" data-bs-placement="top" title="Settings">
+                    <div class="px-3 mt-auto pt-3 border-top">
+                        <div class="d-flex flex-column gap-2">
+                            <!-- Settings and Home Icons -->
+                            <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
+                                <Link :href="route('admin.settings.index')" class="btn btn-sm btn-light btn-round" data-bs-toggle="tooltip" data-bs-placement="top" title="الإعدادات">
                                     <i class="bi bi-gear-fill"></i>
-                                </a>
-                                <a class="h5 mb-0 text-body" href="index.html" data-bs-toggle="tooltip" data-bs-placement="top" title="Home">
+                                </Link>
+                                <a class="btn btn-sm btn-light btn-round" href="/" data-bs-toggle="tooltip" data-bs-placement="top" title="الرئيسية">
                                     <i class="bi bi-globe"></i>
                                 </a>
-                                <Link as="button" method="post" :href="route('logout')" class="h5 mb-0 text-body" data-bs-placement="top" title="Sign out">
-                                    <i class="bi bi-power fa-fw me-2"></i> Sign Out
-                                </Link>
+                            </div>
+                            <!-- Sign Out Button -->
+                            <button @click="handleLogout" class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2" data-bs-placement="top" title="تسجيل الخروج">
+                                <i class="bi bi-power"></i>
+                                <span>تسجيل الخروج</span>
+                            </button>
                         </div>
                     </div>
                     <!-- Sidebar footer END -->
@@ -189,7 +218,7 @@
                             <ul class="navbar-nav flex-row align-items-center">
 
                                 <!-- Language dropdown START -->
-                                <li class="nav-item ms-2 ms-md-3 dropdown">
+                                <li v-if="languages && languages.length > 0" class="nav-item ms-2 ms-md-3 dropdown" style="display: block !important;">
                                     <!-- Language button -->
                                     <a class="btn btn-light btn-round mb-0" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
                                         <i class="bi bi-globe fa-fw"></i>
@@ -199,15 +228,18 @@
                                         <div class="card bg-transparent">
                                             <div class="card-body p-0">
                                                 <ul class="list-group list-unstyled list-group-flush">
-                                                    <!-- Notif item -->
-                                                    <li>
-                                                        <button @click="changeLang('ar')" class="list-group-item-action border-0 border-bottom d-flex p-3">
-                                                           ar
-                                                        </button>
-                                                    </li>
-                                                    <li>
-                                                        <button @click="changeLang('en')" class="list-group-item-action border-0 border-bottom d-flex p-3">
-                                                           en
+                                                    <li v-for="(language, index) in languages" :key="language?.id || index">
+                                                        <button 
+                                                            v-if="language"
+                                                            @click="changeLang(language.code)" 
+                                                            :class="[
+                                                                'list-group-item-action border-0 d-flex p-3 align-items-center justify-content-between',
+                                                                language.code === currentLocale ? 'bg-primary bg-opacity-10' : '',
+                                                                index !== languages.length - 1 ? 'border-bottom' : ''
+                                                            ]"
+                                                        >
+                                                            <span>{{ language.name }}</span>
+                                                            <span v-if="language.code === currentLocale" class="badge bg-primary">✓</span>
                                                         </button>
                                                     </li>
                                                 </ul>
@@ -335,7 +367,7 @@
                                         <li><a class="dropdown-item" href="#"><i class="bi bi-person fa-fw me-2"></i>Edit Profile</a></li>
                                         <li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>Account Settings</a></li>
                                         <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>Help</a></li>
-                                        <li><a class="dropdown-item bg-danger-soft-hover" href="#"><i class="bi bi-power fa-fw me-2"></i>Sign Out</a></li>
+                                            <li><button @click="handleLogout" class="dropdown-item bg-danger-soft-hover"><i class="bi bi-power fa-fw me-2"></i>Sign Out</button></li>
                                         <li> <hr class="dropdown-divider"></li>
 
                                         <!-- Dark mode options START -->
@@ -384,3 +416,38 @@
     <!-- Back to top -->
     <div class="back-top"><i class="bi bi-arrow-up-short position-absolute top-50 start-50 translate-middle"></i></div>
 </template>
+
+<style scoped>
+.sidebar-scrollable {
+    overflow: hidden !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+}
+
+.sidebar-scrollable #navbar-sidebar {
+    flex: 1 1 auto;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    min-height: 0 !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar styling */
+.sidebar-scrollable #navbar-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-scrollable #navbar-sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.sidebar-scrollable #navbar-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar-scrollable #navbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+</style>

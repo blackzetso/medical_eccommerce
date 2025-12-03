@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use App\Models\Language;
 
 class SetLocale
 {
@@ -18,7 +19,19 @@ class SetLocale
         if ($locale = session('locale')) {
             app()->setLocale($locale);
         } else {
-            app()->setLocale(config('app.locale'));
+            // Get default language from database
+            $defaultLanguage = Language::where('is_default', 1)
+                ->where('status', 'enabled')
+                ->first();
+            
+            if ($defaultLanguage) {
+                $locale = $defaultLanguage->code;
+                session(['locale' => $locale]);
+            } else {
+                $locale = config('app.locale');
+            }
+            
+            app()->setLocale($locale);
         }
 
         return $next($request);

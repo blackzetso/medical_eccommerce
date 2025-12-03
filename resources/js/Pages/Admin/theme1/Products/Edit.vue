@@ -37,11 +37,14 @@ const form = useForm({
   meta_description: props.product.meta_description,
   images: [],
   existing_images: props.product.images || [],
-  attributes: props.productAttributes || []
+  attributes: props.productAttributes || [],
+  colors: props.product.colors || [] // إضافة الألوان
 })
 
 const imagePreview = ref([])
 const existingImages = ref([...form.existing_images])
+const colorCount = ref(props.product.colors ? props.product.colors.length : 0); // عدد الألوان
+const colorInputs = ref(props.product.colors || []); // قائمة الألوان
 
 // ✅ توليد slug تلقائياً من الاسم
 const generateSlug = () => {
@@ -164,15 +167,40 @@ const getSelectedAttributesSummary = () => {
   })
 }
 
+// تحديث الحقول بناءً على عدد الألوان
+const updateColorInputs = () => {
+  colorInputs.value = Array.from({ length: colorCount.value }, (_, i) => colorInputs.value[i] || "#000000");
+};
+
+// حفظ الألوان في الفورم
+const saveColorsToForm = () => {
+  form.colors = colorInputs.value;
+}
+
 function updateForm() {
+  const formData = new FormData();
+
+  // إضافة الحقول النصية إلى FormData
+  Object.keys(form).forEach(key => {
+    if (key !== 'images') {
+      formData.append(key, form[key]);
+    }
+  });
+
+  // إضافة الصور إلى FormData
+  form.images.forEach((image, index) => {
+    formData.append(`images[${index}]`, image);
+  });
+
   form.put(route('admin.products.update', props.product.id), {
+    data: formData,
     onSuccess: () => {
-      Swal.fire('تم التحديث!', 'تم تحديث المنتج بنجاح.', 'success')
+      Swal.fire('تم التحديث!', 'تم تحديث المنتج بنجاح.', 'success');
     },
     onError: () => {
-      Swal.fire('خطأ!', 'حدثت مشكلة أثناء التحديث.', 'error')
+      Swal.fire('خطأ!', 'حدثت مشكلة أثناء التحديث.', 'error');
     }
-  })
+  });
 }
 </script>
 
@@ -180,462 +208,491 @@ function updateForm() {
   <Head title="Edit Product" />
   <AppLayout>
     <div class="page-content-wrapper border">
-      <div class="card-body px-1 px-sm-4">
-        <h4>تعديل المنتج: {{ props.product.name }}</h4>
-        <Link :href="route('admin.products.index')">
-          <i class="fas fa-arrow-left"></i> رجوع
-        </Link>
-        <hr />
+      <form @submit.prevent="updateForm" enctype="multipart/form-data">
+        <div class="card-body px-1 px-sm-4">
+          <h4>تعديل المنتج: {{ props.product.name }}</h4>
+          <Link :href="route('admin.products.index')">
+            <i class="fas fa-arrow-left"></i> رجوع
+          </Link>
+          <hr />
 
-        <div class="row g-4">
-          <!-- المعلومات الأساسية -->
-          <div class="col-12">
-            <h5>المعلومات الأساسية</h5>
-          </div>
-
-          <!-- اسم المنتج -->
-          <div class="col-md-6">
-            <label class="form-label">اسم المنتج (عربي) *</label>
-            <input
-              class="form-control"
-              v-model="form.name"
-              @input="generateSlug"
-              type="text"
-              placeholder="اكتب اسم المنتج بالعربي"
-            />
-            <div v-if="form.errors.name" class="text-danger">{{ form.errors.name }}</div>
-          </div>
-
-          <!-- اسم المنتج بالإنجليزي -->
-          <div class="col-md-6">
-            <label class="form-label">اسم المنتج (إنجليزي)</label>
-            <input
-              class="form-control"
-              v-model="form.name_en"
-              type="text"
-              placeholder="Product name in English"
-            />
-            <div v-if="form.errors.name_en" class="text-danger">{{ form.errors.name_en }}</div>
-            <small class="text-muted">ميزة خاصة للعميل - يمكن إخفاؤها لاحقاً</small>
-          </div>
-
-          <!-- الرابط الثابت -->
-          <div class="col-md-6">
-            <label class="form-label">الرابط الثابت (Slug)</label>
-            <input
-              class="form-control"
-              v-model="form.slug"
-              type="text"
-              placeholder="product-slug"
-            />
-            <div v-if="form.errors.slug" class="text-danger">{{ form.errors.slug }}</div>
-          </div>
-
-          <!-- الوصف المختصر -->
-          <div class="col-12">
-            <label class="form-label">الوصف المختصر</label>
-            <textarea
-              class="form-control"
-              v-model="form.short_description"
-              rows="3"
-              placeholder="وصف مختصر للمنتج"
-            ></textarea>
-            <div v-if="form.errors.short_description" class="text-danger">{{ form.errors.short_description }}</div>
-          </div>
-
-          <!-- الوصف الكامل -->
-          <div class="col-12">
-            <label class="form-label">الوصف الكامل</label>
-            <textarea
-              class="form-control"
-              v-model="form.description"
-              rows="5"
-              placeholder="الوصف الكامل للمنتج"
-            ></textarea>
-            <div v-if="form.errors.description" class="text-danger">{{ form.errors.description }}</div>
-          </div>
-
-          <!-- التسعير والمخزون -->
-          <div class="col-12">
-            <h5>التسعير والمخزون</h5>
-          </div>
-
-          <!-- السعر الأساسي -->
-          <div class="col-md-4">
-            <label class="form-label">السعر الأصلي *</label>
-            <input
-              class="form-control"
-              v-model="form.price"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-            />
-            <div v-if="form.errors.price" class="text-danger">{{ form.errors.price }}</div>
-          </div>
-
-          <!-- نوع الخصم -->
-          <div class="col-md-4">
-            <label class="form-label">نوع الخصم</label>
-            <select
-              class="form-control"
-              v-model="form.discount_type"
-              @change="form.discount_value = ''"
-            >
-              <option value="none">بدون خصم</option>
-              <option value="fixed">خصم ثابت</option>
-              <option value="percentage">خصم نسبة مئوية</option>
-            </select>
-            <div v-if="form.errors.discount_type" class="text-danger">{{ form.errors.discount_type }}</div>
-          </div>
-
-          <!-- قيمة الخصم -->
-          <div class="col-md-4" v-if="form.discount_type !== 'none'">
-            <label class="form-label">
-              {{ form.discount_type === 'percentage' ? 'نسبة الخصم (%)' : 'مبلغ الخصم ($)' }}
-            </label>
-            <input
-              class="form-control"
-              v-model="form.discount_value"
-              type="number"
-              :step="form.discount_type === 'percentage' ? '1' : '0.01'"
-              :placeholder="form.discount_type === 'percentage' ? '0' : '0.00'"
-              :max="form.discount_type === 'percentage' ? '100' : undefined"
-            />
-            <div v-if="form.errors.discount_value" class="text-danger">{{ form.errors.discount_value }}</div>
-
-            <!-- عرض السعر النهائي -->
-            <div v-if="form.price && form.discount_value" class="mt-2">
-              <small class="text-success">
-                السعر النهائي: ${{ calculateFinalPrice() }}
-              </small>
+          <div class="row g-4">
+            <!-- المعلومات الأساسية -->
+            <div class="col-12">
+              <h5>المعلومات الأساسية</h5>
             </div>
-          </div>
 
-          <!-- كمية المخزون -->
-          <div class="col-md-4">
-            <label class="form-label">كمية المخزون</label>
-            <input
-              class="form-control"
-              v-model="form.stock_quantity"
-              type="number"
-              placeholder="0"
-            />
-            <div v-if="form.errors.stock_quantity" class="text-danger">{{ form.errors.stock_quantity }}</div>
-          </div>
-
-          <!-- إدارة المخزون -->
-          <div class="col-md-6">
-            <div class="form-check">
+            <!-- اسم المنتج -->
+            <div class="col-md-6">
+              <label class="form-label">اسم المنتج (عربي) *</label>
               <input
-                class="form-check-input"
-                type="checkbox"
-                v-model="form.manage_stock"
-                id="manage_stock"
+                class="form-control"
+                v-model="form.name"
+                @input="generateSlug"
+                type="text"
+                placeholder="اكتب اسم المنتج بالعربي"
               />
-              <label class="form-check-label" for="manage_stock">
-                إدارة المخزون
-              </label>
+              <div v-if="form.errors.name" class="text-danger">{{ form.errors.name }}</div>
             </div>
-          </div>
 
-          <!-- الخصائص -->
-          <div class="col-12" v-if="attributes && attributes.length > 0">
-            <h5>خصائص المنتج</h5>
-          </div>
+            <!-- اسم المنتج بالإنجليزي -->
+            <div class="col-md-6">
+              <label class="form-label">اسم المنتج (إنجليزي)</label>
+              <input
+                class="form-control"
+                v-model="form.name_en"
+                type="text"
+                placeholder="Product name in English"
+              />
+              <div v-if="form.errors.name_en" class="text-danger">{{ form.errors.name_en }}</div>
+              <small class="text-muted">ميزة خاصة للعميل - يمكن إخفاؤها لاحقاً</small>
+            </div>
 
-          <div class="col-12" v-if="attributes && attributes.length > 0">
-            <div class="card">
-              <div class="card-header">
-                <span>الخصائص المتاحة</span>
+            <!-- الرابط الثابت -->
+            <div class="col-md-6">
+              <label class="form-label">الرابط الثابت (Slug)</label>
+              <input
+                class="form-control"
+                v-model="form.slug"
+                type="text"
+                placeholder="product-slug"
+              />
+              <div v-if="form.errors.slug" class="text-danger">{{ form.errors.slug }}</div>
+            </div>
+
+            <!-- الوصف المختصر -->
+            <div class="col-12">
+              <label class="form-label">الوصف المختصر</label>
+              <textarea
+                class="form-control"
+                v-model="form.short_description"
+                rows="3"
+                placeholder="وصف مختصر للمنتج"
+              ></textarea>
+              <div v-if="form.errors.short_description" class="text-danger">{{ form.errors.short_description }}</div>
+            </div>
+
+            <!-- الوصف الكامل -->
+            <div class="col-12">
+              <label class="form-label">الوصف الكامل</label>
+              <textarea
+                class="form-control"
+                v-model="form.description"
+                rows="5"
+                placeholder="الوصف الكامل للمنتج"
+              ></textarea>
+              <div v-if="form.errors.description" class="text-danger">{{ form.errors.description }}</div>
+            </div>
+
+            <!-- التسعير والمخزون -->
+            <div class="col-12">
+              <h5>التسعير والمخزون</h5>
+            </div>
+
+            <!-- السعر الأساسي -->
+            <div class="col-md-4">
+              <label class="form-label">السعر الأصلي *</label>
+              <input
+                class="form-control"
+                v-model="form.price"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+              />
+              <div v-if="form.errors.price" class="text-danger">{{ form.errors.price }}</div>
+            </div>
+
+            <!-- نوع الخصم -->
+            <div class="col-md-4">
+              <label class="form-label">نوع الخصم</label>
+              <select
+                class="form-control"
+                v-model="form.discount_type"
+                @change="form.discount_value = ''"
+              >
+                <option value="none">بدون خصم</option>
+                <option value="fixed">خصم ثابت</option>
+                <option value="percentage">خصم نسبة مئوية</option>
+              </select>
+              <div v-if="form.errors.discount_type" class="text-danger">{{ form.errors.discount_type }}</div>
+            </div>
+
+            <!-- قيمة الخصم -->
+            <div class="col-md-4" v-if="form.discount_type !== 'none'">
+              <label class="form-label">
+                {{ form.discount_type === 'percentage' ? 'نسبة الخصم (%)' : 'مبلغ الخصم ($)' }}
+              </label>
+              <input
+                class="form-control"
+                v-model="form.discount_value"
+                type="number"
+                :step="form.discount_type === 'percentage' ? '1' : '0.01'"
+                :placeholder="form.discount_type === 'percentage' ? '0' : '0.00'"
+                :max="form.discount_type === 'percentage' ? '100' : undefined"
+              />
+              <div v-if="form.errors.discount_value" class="text-danger">{{ form.errors.discount_value }}</div>
+
+              <!-- عرض السعر النهائي -->
+              <div v-if="form.price && form.discount_value" class="mt-2">
+                <small class="text-success">
+                  السعر النهائي: ${{ calculateFinalPrice() }}
+                </small>
               </div>
-              <div class="card-body">
-                <div v-if="attributes.length === 0" class="text-muted text-center py-3">
-                  لا توجد خصائص متاحة
+            </div>
+
+            <!-- كمية المخزون -->
+            <div class="col-md-4">
+              <label class="form-label">كمية المخزون</label>
+              <input
+                class="form-control"
+                v-model="form.stock_quantity"
+                type="number"
+                placeholder="0"
+              />
+              <div v-if="form.errors.stock_quantity" class="text-danger">{{ form.errors.stock_quantity }}</div>
+            </div>
+
+            <!-- إدارة المخزون -->
+            <div class="col-md-6">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  v-model="form.manage_stock"
+                  id="manage_stock"
+                />
+                <label class="form-check-label" for="manage_stock">
+                  إدارة المخزون
+                </label>
+              </div>
+            </div>
+
+            <!-- الخصائص -->
+            <div class="col-12" v-if="attributes && attributes.length > 0">
+              <h5>خصائص المنتج</h5>
+            </div>
+
+            <div class="col-12" v-if="attributes && attributes.length > 0">
+              <div class="card">
+                <div class="card-header">
+                  <span>الخصائص المتاحة</span>
                 </div>
+                <div class="card-body">
+                  <div v-if="attributes.length === 0" class="text-muted text-center py-3">
+                    لا توجد خصائص متاحة
+                  </div>
 
-                <!-- عرض كل خاصية مع قيمها -->
-                <div v-for="attribute in attributes" :key="attribute.id" class="mb-4 p-3 border rounded">
-                  <h6 class="mb-3">{{ attribute.name }}</h6>
+                  <!-- عرض كل خاصية مع قيمها -->
+                  <div v-for="attribute in attributes" :key="attribute.id" class="mb-4 p-3 border rounded">
+                    <h6 class="mb-3">{{ attribute.name }}</h6>
 
-                  <div class="row g-2">
-                    <div v-for="value in attribute.values" :key="value.id" class="col-md-3">
-                      <div class="card h-100">
-                        <div class="card-body p-2">
-                          <div class="form-check">
-                            <input
-                              class="form-check-input"
-                              type="checkbox"
-                              :id="`attr_${attribute.id}_val_${value.id}`"
-                              :value="value.id"
-                              @change="toggleAttributeValue(attribute.id, value.id, $event.target.checked)"
-                              :checked="isAttributeValueSelected(attribute.id, value.id)"
-                            />
-                            <label class="form-check-label" :for="`attr_${attribute.id}_val_${value.id}`">
-                              <strong>{{ value.value }}</strong>
-                            </label>
-                          </div>
+                    <div class="row g-2">
+                      <div v-for="value in attribute.values" :key="value.id" class="col-md-3">
+                        <div class="card h-100">
+                          <div class="card-body p-2">
+                            <div class="form-check">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                :id="`attr_${attribute.id}_val_${value.id}`"
+                                :value="value.id"
+                                @change="toggleAttributeValue(attribute.id, value.id, $event.target.checked)"
+                                :checked="isAttributeValueSelected(attribute.id, value.id)"
+                              />
+                              <label class="form-check-label" :for="`attr_${attribute.id}_val_${value.id}`">
+                                <strong>{{ value.value }}</strong>
+                              </label>
+                            </div>
 
-                          <!-- تعديل السعر لهذه القيمة -->
-                          <div v-if="isAttributeValueSelected(attribute.id, value.id)" class="mt-2">
-                            <label class="form-label small">تعديل السعر ($):</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              class="form-control form-control-sm"
-                              :value="getAttributeValuePriceAdjustment(attribute.id, value.id)"
-                              @input="updateAttributeValuePrice(attribute.id, value.id, $event.target.value)"
-                              placeholder="0.00"
-                            />
+                            <!-- تعديل السعر لهذه القيمة -->
+                            <div v-if="isAttributeValueSelected(attribute.id, value.id)" class="mt-2">
+                              <label class="form-label small">تعديل السعر ($):</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                class="form-control form-control-sm"
+                                :value="getAttributeValuePriceAdjustment(attribute.id, value.id)"
+                                @input="updateAttributeValuePrice(attribute.id, value.id, $event.target.value)"
+                                placeholder="0.00"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- ملخص الخصائص المختارة -->
-                <div v-if="form.attributes.length > 0" class="mt-4 p-3 bg-light rounded">
-                  <h6>الخصائص المختارة:</h6>
-                  <div class="row g-2">
-                    <div v-for="attr in getSelectedAttributesSummary()" :key="`${attr.attribute_id}_${attr.attribute_value_id}`" class="col-auto">
-                      <span class="badge bg-primary">
-                        {{ attr.attribute_name }}: {{ attr.value_name }}
-                        <span v-if="attr.price_adjustment > 0"> (+${{ attr.price_adjustment }})</span>
-                        <span v-if="attr.price_adjustment < 0"> (${{ attr.price_adjustment }})</span>
-                      </span>
+                  <!-- ملخص الخصائص المختارة -->
+                  <div v-if="form.attributes.length > 0" class="mt-4 p-3 bg-light rounded">
+                    <h6>الخصائص المختارة:</h6>
+                    <div class="row g-2">
+                      <div v-for="attr in getSelectedAttributesSummary()" :key="`${attr.attribute_id}_${attr.attribute_value_id}`" class="col-auto">
+                        <span class="badge bg-primary">
+                          {{ attr.attribute_name }}: {{ attr.value_name }}
+                          <span v-if="attr.price_adjustment > 0"> (+${{ attr.price_adjustment }})</span>
+                          <span v-if="attr.price_adjustment < 0"> (${{ attr.price_adjustment }})</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>          <!-- رقم المنتج -->
+            <div class="col-md-6">
+              <label class="form-label">رقم المنتج (SKU)</label>
+              <input
+                class="form-control"
+                v-model="form.sku"
+                type="text"
+                placeholder="SKU123"
+              />
+              <div v-if="form.errors.sku" class="text-danger">{{ form.errors.sku }}</div>
             </div>
-          </div>          <!-- رقم المنتج -->
-          <div class="col-md-6">
-            <label class="form-label">رقم المنتج (SKU)</label>
-            <input
-              class="form-control"
-              v-model="form.sku"
-              type="text"
-              placeholder="SKU123"
-            />
-            <div v-if="form.errors.sku" class="text-danger">{{ form.errors.sku }}</div>
-          </div>
 
-          <!-- الشحن -->
-          <div class="col-12">
-            <h5>معلومات الشحن</h5>
-          </div>
+            <!-- الشحن -->
+            <div class="col-12">
+              <h5>معلومات الشحن</h5>
+            </div>
 
-          <!-- الوزن -->
-          <div class="col-md-6">
-            <label class="form-label">الوزن (كجم)</label>
-            <input
-              class="form-control"
-              v-model="form.weight"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-            />
-            <div v-if="form.errors.weight" class="text-danger">{{ form.errors.weight }}</div>
-          </div>
+            <!-- الوزن -->
+            <div class="col-md-6">
+              <label class="form-label">الوزن (كجم)</label>
+              <input
+                class="form-control"
+                v-model="form.weight"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+              />
+              <div v-if="form.errors.weight" class="text-danger">{{ form.errors.weight }}</div>
+            </div>
 
-          <!-- الأبعاد -->
-          <div class="col-md-6">
-            <label class="form-label">الأبعاد (الطول × العرض × الارتفاع)</label>
-            <input
-              class="form-control"
-              v-model="form.dimensions"
-              type="text"
-              placeholder="20 × 15 × 10"
-            />
-            <div v-if="form.errors.dimensions" class="text-danger">{{ form.errors.dimensions }}</div>
-          </div>
+            <!-- الأبعاد -->
+            <div class="col-md-6">
+              <label class="form-label">الأبعاد (الطول × العرض × الارتفاع)</label>
+              <input
+                class="form-control"
+                v-model="form.dimensions"
+                type="text"
+                placeholder="20 × 15 × 10"
+              />
+              <div v-if="form.errors.dimensions" class="text-danger">{{ form.errors.dimensions }}</div>
+            </div>
 
-          <!-- التصنيف -->
-          <div class="col-12">
-            <h5>التصنيف</h5>
-          </div>
+            <!-- التصنيف -->
+            <div class="col-12">
+              <h5>التصنيف</h5>
+            </div>
 
-          <!-- القسم -->
-          <div class="col-md-6">
-            <label class="form-label">القسم</label>
-            <select v-model="form.category_id" class="form-select">
-              <option :value="null">اختر القسم</option>
-              <option
-                v-for="category in props.categories"
-                :key="category.id"
-                :value="category.id"
-              >
-                {{ category.name }}
-              </option>
-            </select>
-            <div v-if="form.errors.category_id" class="text-danger">{{ form.errors.category_id }}</div>
-            <small class="text-muted">الأقسام معروضة بالتسلسل الهرمي (- رئيسي، -- فرعي)</small>
-          </div>
+            <!-- القسم -->
+            <div class="col-md-6">
+              <label class="form-label">القسم</label>
+              <select v-model="form.category_id" class="form-select">
+                <option :value="null">اختر القسم</option>
+                <option
+                  v-for="category in props.categories"
+                  :key="category.id"
+                  :value="category.id"
+                >
+                  {{ category.name }}
+                </option>
+              </select>
+              <div v-if="form.errors.category_id" class="text-danger">{{ form.errors.category_id }}</div>
+              <small class="text-muted">الأقسام معروضة بالتسلسل الهرمي (- رئيسي، -- فرعي)</small>
+            </div>
 
-          <!-- العلامة التجارية -->
-          <div class="col-md-6">
-            <label class="form-label">العلامة التجارية</label>
-            <select v-model="form.brand_id" class="form-select">
-              <option :value="null">اختر العلامة التجارية</option>
-              <option
-                v-for="brand in props.brands"
-                :key="brand.id"
-                :value="brand.id"
-              >
-                {{ brand.name }}
-              </option>
-            </select>
-            <div v-if="form.errors.brand_id" class="text-danger">{{ form.errors.brand_id }}</div>
-          </div>
+            <!-- العلامة التجارية -->
+            <div class="col-md-6">
+              <label class="form-label">العلامة التجارية</label>
+              <select v-model="form.brand_id" class="form-select">
+                <option :value="null">اختر العلامة التجارية</option>
+                <option
+                  v-for="brand in props.brands"
+                  :key="brand.id"
+                  :value="brand.id"
+                >
+                  {{ brand.name }}
+                </option>
+              </select>
+              <div v-if="form.errors.brand_id" class="text-danger">{{ form.errors.brand_id }}</div>
+            </div>
 
-          <!-- الصور الحالية -->
-          <div class="col-12" v-if="existingImages.length">
-            <h5>الصور الحالية</h5>
-            <div class="row g-3">
-              <div
-                v-for="(image, index) in existingImages"
-                :key="index"
-                class="col-md-3"
-              >
-                <div class="position-relative">
-                  <img
-                    :src="image"
-                    class="img-fluid rounded"
-                    style="height: 150px; object-fit: cover; width: 100%;"
-                  />
-                  <button
-                    type="button"
-                    class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1"
-                    @click="removeExistingImage(index)"
-                  >
-                    <i class="bi bi-x"></i>
-                  </button>
+            <!-- الصور الحالية -->
+            <div class="col-12" v-if="existingImages.length">
+              <h5>الصور الحالية</h5>
+              <div class="row g-3">
+                <div
+                  v-for="(image, index) in existingImages"
+                  :key="index"
+                  class="col-md-3"
+                >
+                  <div class="position-relative">
+                    <img
+                      :src="image"
+                      class="img-fluid rounded"
+                      style="height: 150px; object-fit: cover; width: 100%;"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1"
+                      @click="removeExistingImage(index)"
+                    >
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- رفع صور جديدة -->
-          <div class="col-12">
-            <h5>إضافة صور جديدة</h5>
-          </div>
+            <!-- رفع صور جديدة -->
+            <div class="col-12">
+              <h5>إضافة صور جديدة</h5>
+            </div>
 
-          <div class="col-12">
-            <label class="form-label">رفع الصور</label>
-            <input
-              class="form-control"
-              type="file"
-              multiple
-              accept="image/*"
-              @change="handleImageUpload"
-            />
-            <small class="text-muted">يمكنك رفع عدة صور</small>
-            <div v-if="form.errors.images" class="text-danger">{{ form.errors.images }}</div>
-          </div>
+            <div class="col-12">
+              <label class="form-label">رفع الصور</label>
+              <input
+                class="form-control"
+                type="file"
+                multiple
+                accept="image/*"
+                @change="handleImageUpload"
+              />
+              <small class="text-muted">يمكنك رفع عدة صور</small>
+              <div v-if="form.errors.images" class="text-danger">{{ form.errors.images }}</div>
+            </div>
 
-          <!-- معاينة الصور الجديدة -->
-          <div class="col-12" v-if="imagePreview.length">
-            <div class="row g-3">
-              <div
-                v-for="(preview, index) in imagePreview"
-                :key="index"
-                class="col-md-3"
-              >
-                <div class="position-relative">
-                  <img
-                    :src="preview.url"
-                    class="img-fluid rounded"
-                    style="height: 150px; object-fit: cover; width: 100%;"
-                  />
-                  <button
-                    type="button"
-                    class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1"
-                    @click="removeImage(index)"
-                  >
-                    <i class="bi bi-x"></i>
-                  </button>
+            <!-- معاينة الصور الجديدة -->
+            <div class="col-12" v-if="imagePreview.length">
+              <div class="row g-3">
+                <div
+                  v-for="(preview, index) in imagePreview"
+                  :key="index"
+                  class="col-md-3"
+                >
+                  <div class="position-relative">
+                    <img
+                      :src="preview.url"
+                      class="img-fluid rounded"
+                      style="height: 150px; object-fit: cover; width: 100%;"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1"
+                      @click="removeImage(index)"
+                    >
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- الخيارات -->
-          <div class="col-12">
-            <h5>خيارات إضافية</h5>
-          </div>
-
-          <!-- منتج مميز -->
-          <div class="col-md-6">
-            <div class="form-check">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                v-model="form.is_featured"
-                id="is_featured"
-              />
-              <label class="form-check-label" for="is_featured">
-                منتج مميز
-              </label>
+            <!-- الخيارات -->
+            <div class="col-12">
+              <h5>خيارات إضافية</h5>
             </div>
-          </div>
 
-          <!-- حالة المنتج -->
-          <div class="col-md-6">
-            <div class="form-check">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                v-model="form.status"
-                id="status"
-              />
-              <label class="form-check-label" for="status">
-                نشط
-              </label>
+            <!-- منتج مميز -->
+            <div class="col-md-6">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  v-model="form.is_featured"
+                  id="is_featured"
+                />
+                <label class="form-check-label" for="is_featured">
+                  منتج مميز
+                </label>
+              </div>
             </div>
-          </div>
 
-          <!-- SEO -->
-          <div class="col-12">
-            <h5>تحسين محركات البحث (SEO)</h5>
-          </div>
+            <!-- حالة المنتج -->
+            <div class="col-md-6">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  v-model="form.status"
+                  id="status"
+                />
+                <label class="form-check-label" for="status">
+                  نشط
+                </label>
+              </div>
+            </div>
 
-          <!-- عنوان SEO -->
-          <div class="col-12">
-            <label class="form-label">عنوان الصفحة (Meta Title)</label>
-            <input
-              class="form-control"
-              v-model="form.meta_title"
-              type="text"
-              placeholder="عنوان المنتج في محركات البحث"
-            />
-            <div v-if="form.errors.meta_title" class="text-danger">{{ form.errors.meta_title }}</div>
-          </div>
+            <!-- SEO -->
+            <div class="col-12">
+              <h5>تحسين محركات البحث (SEO)</h5>
+            </div>
 
-          <!-- وصف SEO -->
-          <div class="col-12">
-            <label class="form-label">وصف الصفحة (Meta Description)</label>
-            <textarea
-              class="form-control"
-              v-model="form.meta_description"
-              rows="3"
-              placeholder="وصف المنتج في محركات البحث"
-            ></textarea>
-            <div v-if="form.errors.meta_description" class="text-danger">{{ form.errors.meta_description }}</div>
-          </div>
+            <!-- عنوان SEO -->
+            <div class="col-12">
+              <label class="form-label">عنوان الصفحة (Meta Title)</label>
+              <input
+                class="form-control"
+                v-model="form.meta_title"
+                type="text"
+                placeholder="عنوان المنتج في محركات البحث"
+              />
+              <div v-if="form.errors.meta_title" class="text-danger">{{ form.errors.meta_title }}</div>
+            </div>
 
-          <!-- زر التحديث -->
-          <div class="d-flex justify-content-end mt-3">
-            <button
-              type="button"
-              class="btn btn-primary mb-0"
-              :disabled="form.processing"
-              @click="updateForm"
-            >
-              تحديث المنتج
-            </button>
+            <!-- وصف SEO -->
+            <div class="col-12">
+              <label class="form-label">وصف الصفحة (Meta Description)</label>
+              <textarea
+                class="form-control"
+                v-model="form.meta_description"
+                rows="3"
+                placeholder="وصف المنتج في محركات البحث"
+              ></textarea>
+              <div v-if="form.errors.meta_description" class="text-danger">{{ form.errors.meta_description }}</div>
+            </div>
+
+            <!-- عدد الألوان -->
+            <div class="col-md-6">
+              <label class="form-label">عدد الألوان</label>
+              <input
+                class="form-control"
+                type="number"
+                v-model="colorCount"
+                @input="updateColorInputs"
+                min="0"
+                placeholder="أدخل عدد الألوان"
+              />
+            </div>
+
+            <!-- إدخال الألوان -->
+            <div class="col-12" v-if="colorInputs.length > 0">
+              <label class="form-label">الألوان</label>
+              <div class="row g-2">
+                <div class="col-md-3" v-for="(color, index) in colorInputs" :key="index">
+                  <input
+                    class="form-control form-control-color"
+                    type="color"
+                    v-model="colorInputs[index]"
+                    @change="saveColorsToForm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- زر التحديث -->
+            <div class="d-flex justify-content-end mt-3">
+              <button
+                type="submit"
+                class="btn btn-primary mb-0"
+                :disabled="form.processing"
+              >
+                تحديث المنتج
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   </AppLayout>
 </template>

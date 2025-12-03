@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -52,7 +53,50 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
             ],
+            'footerSettings' => fn () => $this->getFooterSettings($request),
         ]);
+    }
+
+    /**
+     * Get footer settings for frontend pages only
+     *
+     * @param Request $request
+     * @return array|null
+     */
+    private function getFooterSettings(Request $request): ?array
+    {
+        // Only share footer settings for frontend pages (not admin)
+        if (str_starts_with($request->path(), 'admin')) {
+            return null;
+        }
+
+        try {
+            $footerFeatures = Setting::get('footer_features', '');
+            $featuresList = !empty($footerFeatures) ? explode("\n", $footerFeatures) : [];
+            
+            return [
+                'address' => Setting::get('site_address', ''),
+                'phone' => Setting::get('site_phone', ''),
+                'email' => Setting::get('site_email', ''),
+                'working_hours' => Setting::get('site_working_hours', ''),
+                'footer_features' => $featuresList,
+                'facebook_url' => Setting::get('footer_facebook_url', '#'),
+                'twitter_url' => Setting::get('footer_twitter_url', '#'),
+                'instagram_url' => Setting::get('footer_instagram_url', '#'),
+            ];
+        } catch (\Exception $e) {
+            // If settings table doesn't exist or has issues, return defaults
+            return [
+                'address' => '',
+                'phone' => '',
+                'email' => '',
+                'working_hours' => '',
+                'footer_features' => [],
+                'facebook_url' => '#',
+                'twitter_url' => '#',
+                'instagram_url' => '#',
+            ];
+        }
     }
 
 }

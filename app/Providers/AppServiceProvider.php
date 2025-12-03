@@ -48,10 +48,59 @@ class AppServiceProvider extends ServiceProvider
             'translations' => function () {
                 $locale = app()->getLocale();
 
-                return \App\Models\LanguagePhrase::query()
+                // Try to get translations for current locale
+                $translations = \App\Models\LanguagePhrase::query()
                     ->join('languages', 'languages.id', '=', 'language_phrases.language_id')
                     ->where('languages.code', $locale)
-                    ->pluck('word', 'key');
+                    ->where('languages.status', 'enabled')
+                    ->pluck('word', 'key')
+                    ->toArray();
+
+                // If no translations found for current locale, use default language
+                if (empty($translations)) {
+                    $defaultLanguage = Language::where('is_default', 1)
+                        ->where('status', 'enabled')
+                        ->first();
+                    
+                    if ($defaultLanguage) {
+                        $translations = \App\Models\LanguagePhrase::query()
+                            ->where('language_id', $defaultLanguage->id)
+                            ->pluck('word', 'key')
+                            ->toArray();
+                    }
+                }
+
+                return $translations;
+            },
+
+            'languages' => function () {
+                $languages = Language::where('status', 'enabled')
+                    ->select('id', 'name', 'code', 'is_default', 'is_rtl')
+                    ->orderBy('is_default', 'desc')
+                    ->orderBy('name', 'asc')
+                    ->get();
+                
+                // Return as array with proper mapping
+                return $languages->map(function ($lang) {
+                    return [
+                        'id' => $lang->id,
+                        'name' => $lang->name,
+                        'code' => $lang->code,
+                        'is_default' => (bool) $lang->is_default,
+                        'is_rtl' => (bool) $lang->is_rtl,
+                    ];
+                })->values()->toArray();
+            },
+
+            'locale' => fn () => app()->getLocale(),
+
+            'is_rtl' => function () {
+                $locale = app()->getLocale();
+                $currentLanguage = Language::where('code', $locale)
+                    ->where('status', 'enabled')
+                    ->first();
+                
+                return $currentLanguage ? (bool) $currentLanguage->is_rtl : false;
             },
         ]);
     }

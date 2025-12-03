@@ -15,11 +15,14 @@ class OrderItem extends Model
         'quantity',
         'price',
         'total',
+        'attributes',
+        'color',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'total' => 'decimal:2',
+        'attributes' => 'array',
     ];
 
     // العلاقات
