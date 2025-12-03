@@ -252,10 +252,7 @@ const handleSearch = () => {
     color: #007bff;
 }
 
-/* التأكد من أن الأيقونة تظهر مرة واحدة فقط */
-.header-search .btn.icon-magnifier {
-    /* منع أي محتوى إضافي من CSS العام */
-}
+ 
 
 .header-search .btn.icon-magnifier:before {
     font-size: 1.6rem;
