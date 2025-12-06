@@ -49,7 +49,7 @@ class BrandController extends Controller
             'description' => 'nullable|string',
             'website' => 'nullable|url|max:255',
             'status' => 'boolean',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048'
         ]);
 
         // معالجة اللوجو
@@ -100,7 +100,7 @@ class BrandController extends Controller
             'website' => 'nullable|url|max:255',
             'status' => 'boolean',
             'existing_logo' => 'nullable|string',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048'
         ]);
 
         // معالجة اللوجو
@@ -130,11 +130,19 @@ class BrandController extends Controller
     {
         $brand = Brand::findOrFail($id);
         
-        // حذف اللوجو من storage قبل حذف العلامة التجارية
+        // حذف اللوجو قبل حذف العلامة التجارية - دعم المسارات القديمة والجديدة
         if ($brand->logo && $brand->logo !== '/front/theme1/images/no-logo.png') {
-            // إزالة /storage/ من المسار للحصول على المسار الحقيقي
-            $relativePath = str_replace('/storage/', '', $brand->logo);
-            $fullPath = storage_path('app/public/' . $relativePath);
+            $logoPath = $brand->logo;
+            
+            // دعم المسارات القديمة (storage) والجديدة (public)
+            if (strpos($logoPath, '/storage/') === 0) {
+                // مسار قديم في storage
+                $relativePath = str_replace('/storage/', '', $logoPath);
+                $fullPath = storage_path('app/public/' . $relativePath);
+            } else {
+                // مسار جديد في public
+                $fullPath = public_path($logoPath);
+            }
             
             // التحقق من وجود الملف وحذفه
             if (file_exists($fullPath)) {

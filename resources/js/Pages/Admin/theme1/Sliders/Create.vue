@@ -7,11 +7,9 @@ import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
 
 const form = useForm({
-  title: '',
   description: '',
   image: null,
   link: '',
-  button_text: '',
   sort_order: 0,
   status: true
 })
@@ -81,22 +79,6 @@ const submit = () => {
         <div class="col-lg-8">
           <div class="card card-body bg-transparent border">
             <form @submit.prevent="submit">
-              <!-- العنوان -->
-              <div class="mb-3">
-                <label class="form-label">العنوان <span class="text-danger">*</span></label>
-                <input
-                  type="text"
-                  class="form-control"
-                  v-model="form.title"
-                  :class="{ 'is-invalid': form.errors.title }"
-                  placeholder="أدخل عنوان السلايدر"
-                  required
-                />
-                <div class="invalid-feedback" v-if="form.errors.title">
-                  {{ form.errors.title }}
-                </div>
-              </div>
-
               <!-- الوصف -->
               <div class="mb-3">
                 <label class="form-label">الوصف</label>
@@ -122,23 +104,9 @@ const submit = () => {
                   :class="{ 'is-invalid': form.errors.link }"
                   placeholder="https://example.com (اختياري)"
                 />
+                <small class="text-muted">عند الضغط على الصورة سيتم الانتقال لهذا الرابط</small>
                 <div class="invalid-feedback" v-if="form.errors.link">
                   {{ form.errors.link }}
-                </div>
-              </div>
-
-              <!-- نص الزر -->
-              <div class="mb-3">
-                <label class="form-label">نص الزر</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  v-model="form.button_text"
-                  :class="{ 'is-invalid': form.errors.button_text }"
-                  placeholder="مثال: اشترِ الآن (اختياري)"
-                />
-                <div class="invalid-feedback" v-if="form.errors.button_text">
-                  {{ form.errors.button_text }}
                 </div>
               </div>
 
@@ -249,11 +217,7 @@ const submit = () => {
               </li>
               <li class="mb-2">
                 <i class="bi bi-check-circle text-success me-2"></i>
-                اجعل العنوان واضحاً ومختصراً
-              </li>
-              <li class="mb-2">
-                <i class="bi bi-check-circle text-success me-2"></i>
-                أضف رابطاً ونص زر للتفاعل
+                أضف رابطاً للانتقال عند الضغط على الصورة
               </li>
               <li class="mb-2">
                 <i class="bi bi-check-circle text-success me-2"></i>

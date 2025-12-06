@@ -52,10 +52,15 @@
                                         <Link :href="route('web.product', product.id)">{{ product.name }}</Link>
                                     </h3>
 
-                                    <div class="price-box">
+                                    <div v-if="isAuthenticated" class="price-box">
                                         <span v-if="product.sale_price" class="old-price">{{ product.price }} جنيه</span>
                                         <span class="product-price">{{ product.sale_price || product.price }} جنيه</span>
                                     </div><!-- End .price-box -->
+                                    <div v-else class="price-box">
+                                        <p class="text-muted" style="font-size: 0.9rem; margin: 0;">
+                                            <Link :href="route('client.login')" class="text-primary">يرجى تسجيل الدخول</Link> لعرض الأسعار
+                                        </p>
+                                    </div>
                                 </div><!-- End .product-details -->
                             </div>
                         </div>
@@ -87,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import FrontLayout from '@/Pages/Front/Theme1/Layout/App.vue';
@@ -108,6 +113,11 @@ const props = defineProps({
 });
 
 const page = usePage();
+
+// التحقق من تسجيل الدخول
+const isAuthenticated = computed(() => {
+    return page.props.auth?.user !== null && page.props.auth?.user !== undefined;
+});
 
 // Reactive data for infinite scroll
 const allProducts = ref([...props.products]);

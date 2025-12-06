@@ -73,15 +73,10 @@ watch(search, (value) => {
   }
 })
 
-// ✅ عرض اللوجو مع التحقق من صحة المسار
+// ✅ عرض اللوجو باستخدام logo_url من النموذج
 function getLogo(brand) {
-  if (brand.logo && brand.logo.trim() !== '') {
-    // التأكد من أن المسار يبدأ بـ /storage/
-    if (brand.logo.startsWith('/storage/')) {
-      return brand.logo
-    }
-    // إذا لم يبدأ بـ /storage/ نضيفه
-    return '/storage/' + brand.logo.replace(/^\/+/, '')
+  if (brand.logo_url && brand.logo_url.trim() !== '') {
+    return brand.logo_url
   }
   // استخدام صورة placeholder إذا لم يكن هناك لوجو
   return 'https://via.placeholder.com/50x50/e9ecef/6c757d?text=Logo'

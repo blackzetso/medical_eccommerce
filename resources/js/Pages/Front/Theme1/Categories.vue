@@ -34,7 +34,7 @@ const props = defineProps({
                                         <div class="product-default inner-icon">
                                             <figure>
                                                 <Link :href="route('web.category', cat.id)">
-                                                    <img v-if="cat.image" :src="'/' + cat.image" :alt="cat.name" width="273" height="273" />
+                                                    <img v-if="cat.image_url" :src="cat.image_url" :alt="cat.name" width="273" height="273" />
                                                     <img v-else :src="'/default-placeholder.png'" :alt="cat.name" width="273" height="273" />
                                                 </Link>
                                             </figure>

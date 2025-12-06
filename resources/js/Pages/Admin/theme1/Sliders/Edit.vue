@@ -11,12 +11,10 @@ const props = defineProps({
 })
 
 const form = useForm({
-  title: props.slider.title,
   description: props.slider.description,
   image: null,
   existing_image: props.slider.image,
   link: props.slider.link,
-  button_text: props.slider.button_text,
   sort_order: props.slider.sort_order,
   status: props.slider.status
 })
@@ -90,22 +88,6 @@ const submit = () => {
         <div class="col-lg-8">
           <div class="card card-body bg-transparent border">
             <form @submit.prevent="submit">
-              <!-- العنوان -->
-              <div class="mb-3">
-                <label class="form-label">العنوان <span class="text-danger">*</span></label>
-                <input
-                  type="text"
-                  class="form-control"
-                  v-model="form.title"
-                  :class="{ 'is-invalid': form.errors.title }"
-                  placeholder="أدخل عنوان السلايدر"
-                  required
-                />
-                <div class="invalid-feedback" v-if="form.errors.title">
-                  {{ form.errors.title }}
-                </div>
-              </div>
-
               <!-- الوصف -->
               <div class="mb-3">
                 <label class="form-label">الوصف</label>
@@ -131,23 +113,9 @@ const submit = () => {
                   :class="{ 'is-invalid': form.errors.link }"
                   placeholder="https://example.com (اختياري)"
                 />
+                <small class="text-muted">عند الضغط على الصورة سيتم الانتقال لهذا الرابط</small>
                 <div class="invalid-feedback" v-if="form.errors.link">
                   {{ form.errors.link }}
-                </div>
-              </div>
-
-              <!-- نص الزر -->
-              <div class="mb-3">
-                <label class="form-label">نص الزر</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  v-model="form.button_text"
-                  :class="{ 'is-invalid': form.errors.button_text }"
-                  placeholder="مثال: اشترِ الآن (اختياري)"
-                />
-                <div class="invalid-feedback" v-if="form.errors.button_text">
-                  {{ form.errors.button_text }}
                 </div>
               </div>
 

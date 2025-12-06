@@ -72,7 +72,7 @@
                                 <ul class="link-part col-xl-4 mb-0">
                                     <li><Link :href="route('web.about')">{{ t('about_us') }}</Link></li>
                                     <li><Link :href="route('web.contact')">{{ t('contact_us') }}</Link></li>
-                                    <li><Link :href="route('client.dashboard')">{{ t('my_account') }}</Link></li>
+                                     
                                 </ul> 
                             </div>
                         </div><!-- End .widget -->
@@ -99,7 +99,7 @@
                 <div class="footer-left">
                     <span class="footer-copyright">
                         <a href="https://semicolon-solution.net" target="_blank" rel="noopener noreferrer">
-                            تم التصميم والبرمجه بواسطة سيمي كولن للحلول الرقمية
+                            {{ t('designed_and_developed_by') }}
                         </a>
                     </span>
                 </div>

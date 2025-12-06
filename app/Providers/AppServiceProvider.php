@@ -53,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
                     ->join('languages', 'languages.id', '=', 'language_phrases.language_id')
                     ->where('languages.code', $locale)
                     ->where('languages.status', 'enabled')
+                    ->where('language_phrases.group', 'general')
                     ->pluck('word', 'key')
                     ->toArray();
 
@@ -65,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
                     if ($defaultLanguage) {
                         $translations = \App\Models\LanguagePhrase::query()
                             ->where('language_id', $defaultLanguage->id)
+                            ->where('group', 'general')
                             ->pluck('word', 'key')
                             ->toArray();
                     }

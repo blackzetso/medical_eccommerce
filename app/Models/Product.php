@@ -25,9 +25,11 @@ class Product extends Model
         'is_featured',
         'status',
         'sku',
+        'product_code',
         'weight',
         'dimensions',
         'images',
+        'main_image',
         'meta_title',
         'meta_description',
         'category_id',
@@ -129,6 +131,11 @@ class Product extends Model
      */
     public function getMainImageAttribute()
     {
+        // إذا كان هناك main_image محدد، استخدمه
+        if ($this->attributes['main_image'] ?? null) {
+            return $this->attributes['main_image'];
+        }
+        // وإلا استخدم أول صورة من المصفوفة
         if ($this->images && count($this->images) > 0) {
             return $this->images[0];
         }

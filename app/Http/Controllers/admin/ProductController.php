@@ -51,8 +51,28 @@ class ProductController extends Controller
         $query = Product::with(['category', 'brand']);
 
         if ($request->has('search') && $request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('sku', 'like', '%' . $request->search . '%');
+            $searchTerm = trim($request->search);
+            
+            // Check if search term matches product_code exactly
+            $hasExactProductCode = Product::whereNotNull('product_code')
+                ->where('product_code', '=', $searchTerm)
+                ->exists();
+            
+            // Check if search term matches sku exactly
+            $hasExactSku = Product::whereNotNull('sku')
+                ->where('sku', '=', $searchTerm)
+                ->exists();
+            
+            if ($hasExactProductCode) {
+                // Exact match for product_code only
+                $query->where('product_code', '=', $searchTerm);
+            } elseif ($hasExactSku) {
+                // Exact match for sku only
+                $query->where('sku', '=', $searchTerm);
+            } else {
+                // Partial match for name
+                $query->where('name', 'like', '%' . $searchTerm . '%');
+            }
         }
 
         $products = $query->orderBy('created_at', 'desc')->paginate(10);
@@ -110,6 +130,7 @@ class ProductController extends Controller
             'stock_quantity' => 'required|integer|min:0',
             'manage_stock' => 'boolean',
             'sku' => 'nullable|string|max:255|unique:products',
+            'product_code' => 'nullable|string|max:255',
             'weight' => 'nullable|numeric|min:0',
             'dimensions' => 'nullable|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
@@ -118,8 +139,9 @@ class ProductController extends Controller
             'status' => 'boolean',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'images' => 'required|array|min:1', // Ensure at least one image is uploaded
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'images' => 'nullable|array', // Images are now optional since we have main_image
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'attributes' => 'nullable|array',
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.attribute_value_id' => 'required|exists:attribute_values,id',
@@ -127,7 +149,15 @@ class ProductController extends Controller
             'colors' => 'nullable|array', // Validate colors as an optional array
         ]);
 
-        // معالجة الصور ورفعها إلى public/uploads/products
+        // معالجة الصورة الرئيسية ورفعها إلى public/uploads/products
+        if ($request->hasFile('main_image')) {
+            $mainImage = $request->file('main_image');
+            $mainImageFilename = uniqid() . '_main_' . time() . '.' . $mainImage->getClientOriginalExtension();
+            $mainImage->move(public_path('uploads/products'), $mainImageFilename);
+            $validated['main_image'] = '/uploads/products/' . $mainImageFilename;
+        }
+
+        // معالجة الصور الإضافية ورفعها إلى public/uploads/products
         $images = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
@@ -237,6 +267,7 @@ class ProductController extends Controller
             'stock_quantity' => $request->input('stock_quantity') ? 'required|integer|min:0' : 'nullable',
             'manage_stock' => 'boolean',
             'sku' => 'nullable|string|max:255|unique:products,sku,' . $id,
+            'product_code' => 'nullable|string|max:255',
             'weight' => 'nullable|numeric|min:0',
             'dimensions' => 'nullable|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
@@ -245,9 +276,11 @@ class ProductController extends Controller
             'status' => 'boolean',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
+            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'existing_main_image' => 'nullable|string',
             'existing_images' => 'array',
             'images' => $request->hasFile('images') ? 'required|array|min:1' : 'nullable|array', // Accept existing images if no new images are uploaded
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'attributes' => 'nullable|array',
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.attribute_value_id' => 'required|exists:attribute_values,id',
@@ -255,7 +288,23 @@ class ProductController extends Controller
             'colors' => 'nullable|array', // Validate colors as an optional array
         ]);
 
-        // معالجة الصور الجديدة ورفعها إلى public/uploads/products
+        // معالجة الصورة الرئيسية ورفعها إلى public/uploads/products
+        if ($request->hasFile('main_image')) {
+            // حذف الصورة الرئيسية القديمة إذا كانت موجودة
+            if ($product->main_image && file_exists(public_path($product->main_image))) {
+                unlink(public_path($product->main_image));
+            }
+            
+            $mainImage = $request->file('main_image');
+            $mainImageFilename = uniqid() . '_main_' . time() . '.' . $mainImage->getClientOriginalExtension();
+            $mainImage->move(public_path('uploads/products'), $mainImageFilename);
+            $validated['main_image'] = '/uploads/products/' . $mainImageFilename;
+        } else {
+            // الاحتفاظ بالصورة الرئيسية الحالية إذا لم يتم رفع صورة جديدة
+            $validated['main_image'] = $validated['existing_main_image'] ?? $product->main_image;
+        }
+
+        // معالجة الصور الإضافية الجديدة ورفعها إلى public/uploads/products
         $existingImages = $validated['existing_images'] ?? [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {

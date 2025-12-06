@@ -1,8 +1,13 @@
 ﻿<script setup>
+import { ref } from 'vue'
 import AppLayout from '@/Pages/Front/Theme1/Layout/App.vue'
 import { Head, Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import { useTranslations } from '@/composables/translations'
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { Autoplay, EffectFade } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/effect-fade'
 
 const { t } = useTranslations()
 
@@ -10,51 +15,126 @@ const props = defineProps({
     sliders: Array,
     categories: Array
 })
+
+// Swiper instance
+const swiperInstance = ref(null)
+
+// دالة لضمان تنسيق مسار الصورة بشكل صحيح
+const formatImagePath = (imagePath) => {
+    if (!imagePath) return '';
+    
+    // إذا كان المسار يبدأ بـ http أو https، إرجاعه كما هو
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+    }
+    
+    // إذا كان المسار يبدأ بـ /storage/، إرجاعه كما هو (للدعم العكسي)
+    if (imagePath.startsWith('/storage/')) {
+        return imagePath;
+    }
+    
+    // إذا كان المسار يبدأ بـ /uploads/، إرجاعه كما هو
+    if (imagePath.startsWith('/uploads/')) {
+        return imagePath;
+    }
+    
+    // إذا كان المسار لا يبدأ بـ /، إضافة /
+    if (!imagePath.startsWith('/')) {
+        return '/' + imagePath;
+    }
+    
+    return imagePath;
+};
+
+// Swiper modules (without Navigation to avoid SVG)
+const modules = [Autoplay, EffectFade]
+
+// Swiper onSwiper callback
+const onSwiper = (swiper) => {
+    swiperInstance.value = swiper
+}
+
+// Navigation functions
+const goToPrev = () => {
+    if (swiperInstance.value) {
+        swiperInstance.value.slidePrev()
+    }
+}
+
+const goToNext = () => {
+    if (swiperInstance.value) {
+        swiperInstance.value.slideNext()
+    }
+}
 </script>
 
 <template>
     <Head :title="t('home')" />
     <AppLayout>
-        <!-- Dynamic Sliders -->
-        <div v-if="sliders && sliders.length > 0" style="height: 50vh !important;" class="home-slider slide-animate owl-carousel owl-theme show-nav-hover nav-big">
-            <div v-for="slider in sliders" :key="slider.id" class="home-slide banner d-flex align-items-center position-relative">
-                <img class="slide-bg" style="height: 50vh !important; width: 100%; object-fit: cover;" :src="slider.image" :alt="slider.title">
-
-                <!-- Overlay for better text visibility -->
-                <div class="slider-overlay"></div>
-
-                <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
-                    <div class="container">
-                        <h2 v-if="slider.title" class="slider-title text-white mb-3" style="font-size: 3rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
-                            {{ slider.title }}
-                        </h2>
-                        <p v-if="slider.description" class="slider-description text-white mb-4" style="font-size: 1.2rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); max-width: 600px;">
-                            {{ slider.description }}
-                        </p>
-                        <a v-if="slider.link && slider.button_text"
-                           :href="slider.link"
-                           class="btn btn-primary btn-lg shadow"
-                           style="padding: 12px 35px; font-size: 1.1rem;">
-                            {{ slider.button_text }}
-                        </a>
-                    </div>
-                </div><!-- End .banner-layer -->
-            </div><!-- End .home-slide -->
+        <!-- Dynamic Sliders with Swiper -->
+        <div v-if="sliders && sliders.length > 0" class="home-slider-wrapper" style="height: 50vh !important; position: relative;">
+            <swiper
+                :modules="modules"
+                :slides-per-view="1"
+                :loop="true"
+                :autoplay="{
+                    delay: 5000,
+                    disableOnInteraction: false,
+                }"
+                :effect="'fade'"
+                :fade-effect="{ crossFade: true }"
+                @swiper="onSwiper"
+                class="home-slider-swiper"
+                style="height: 100%;"
+            >
+                <swiper-slide v-for="slider in sliders" :key="slider.id" class="home-slide banner d-flex align-items-center position-relative" style="height: 50vh;">
+                    <a v-if="slider.link" :href="slider.link" class="slider-link" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; cursor: pointer;"></a>
+                    <img 
+                        class="slide-bg" 
+                        style="height: 50vh !important; width: 100%; object-fit: cover; position: absolute; top: 0; left: 0;" 
+                        :src="formatImagePath(slider.image)" 
+                        :alt="slider.description || 'Slider'" 
+                        @error="console.error('Failed to load slider image:', slider.image)"
+                    >
+                </swiper-slide>
+            </swiper>
+            
+            <!-- Navigation buttons -->
+            <div @click="goToPrev" class="home-slider-nav-btn home-slider-nav-prev">
+                <i class="icon-left-open-big"></i>
+            </div>
+            <div @click="goToNext" class="home-slider-nav-btn home-slider-nav-next">
+                <i class="icon-right-open-big"></i>
+            </div>
         </div>
 
         <!-- Fallback static sliders if no dynamic sliders -->
-        <div v-else style="height: 50vh !important;" class="home-slider slide-animate owl-carousel owl-theme show-nav-hover nav-big">
-            <div class="home-slide home-slide1 banner d-flex align-items-center">
-                <img class="slide-bg" style="height: 50vh !important;background-color: #ecc;" src="/front/theme1/images/demoes/demo3/slider/slide1.jpg" alt="home banner">
-                <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
-                </div>
-            </div>
-            <div class="home-slide home-slide2 banner d-flex align-items-center">
-                <img class="slide-bg" style="height: 50vh !important;background-color: #bfcec9;" src="/front/theme1/images/demoes/demo3/slider/slide2.jpg" alt="home banner">
-                <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
-                </div>
-            </div>
-        </div><!-- End .home-slider -->
+        <div v-else class="home-slider-wrapper" style="height: 50vh !important; position: relative;">
+            <swiper
+                :modules="modules"
+                :slides-per-view="1"
+                :loop="true"
+                :autoplay="{
+                    delay: 5000,
+                    disableOnInteraction: false,
+                }"
+                :effect="'fade'"
+                :fade-effect="{ crossFade: true }"
+                class="home-slider-swiper"
+                style="height: 100%;"
+            >
+                <swiper-slide class="home-slide home-slide1 banner d-flex align-items-center" style="height: 50vh;">
+                    <img class="slide-bg" style="height: 50vh !important; width: 100%; object-fit: cover; background-color: #ecc;" src="/front/theme1/images/demoes/demo3/slider/slide1.jpg" alt="home banner">
+                    <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
+                    </div>
+                </swiper-slide>
+                <swiper-slide class="home-slide home-slide2 banner d-flex align-items-center" style="height: 50vh;">
+                    <img class="slide-bg" style="height: 50vh !important; width: 100%; object-fit: cover; background-color: #bfcec9;" src="/front/theme1/images/demoes/demo3/slider/slide2.jpg" alt="home banner">
+                    <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
+                    </div>
+                </swiper-slide>
+            </swiper>
+        </div>
 
         <!-- Categories for Desktop only -->
         <section class="container d-none d-lg-block">
@@ -109,20 +189,67 @@ const props = defineProps({
 </template>
 
 <style scoped>
-/* Slider overlay for better text visibility */
-.slider-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to right, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 100%);
-    z-index: 1;
+/* Swiper Slider Styles */
+.home-slider-wrapper {
+    position: relative;
+    width: 100%;
 }
 
-.banner-layer {
+.home-slider-swiper {
+    width: 100%;
+    height: 100%;
+}
+
+.home-slider-swiper :deep(.swiper-slide) {
     position: relative;
-    z-index: 2;
+}
+
+/* Slider link overlay */
+.slider-link {
+    display: block;
+    text-decoration: none;
+}
+
+/* No need to hide anything - Navigation module is removed */
+
+/* Custom Navigation Buttons */
+.home-slider-nav-btn {
+    width: 50px !important;
+    height: 50px !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    border-radius: 50% !important;
+    transition: all 0.3s ease !important;
+    color: white !important;
+    z-index: 10 !important;
+    margin-top: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    pointer-events: auto !important;
+}
+
+.home-slider-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.7) !important;
+}
+
+.home-slider-nav-btn i {
+    font-size: 24px;
+    color: white;
+    line-height: 1;
+}
+
+.home-slider-nav-prev {
+    left: 20px !important;
+    right: auto !important;
+}
+
+.home-slider-nav-next {
+    right: 20px !important;
+    left: auto !important;
 }
 
 /* Mobile Categories Grid */

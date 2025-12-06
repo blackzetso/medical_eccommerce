@@ -25,6 +25,7 @@ const form = useForm({
   stock_quantity: '',
   manage_stock: true,
   sku: '',
+  product_code: '',
   weight: '',
   dimensions: '',
   category_id: null,
@@ -33,21 +34,38 @@ const form = useForm({
   status: true,
   meta_title: '',
   meta_description: '',
+  main_image: null,
   images: [],
   attributes: [],
   colors: [] // Add colors field to the form
 })
 
 const imagePreview = ref([])
+const mainImagePreview = ref(null)
 
-// ✅ توليد slug تلقائياً من الاسم
+// ✅ توليد slug تلقائياً من الاسم الإنجليزي
 const generateSlug = () => {
-  form.slug = form.name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim('-')
+  if (form.name_en && form.name_en.trim()) {
+    form.slug = form.name_en
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim('-')
+  }
+}
+
+// ✅ رفع الصورة الرئيسية
+const handleMainImageUpload = (event) => {
+  const file = event.target.files[0]
+  if (file && file.type.startsWith('image/')) {
+    form.main_image = file
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      mainImagePreview.value = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
 }
 
 // ✅ رفع الصور
@@ -212,7 +230,6 @@ const saveColorsToForm = () => {
             <input
               class="form-control"
               v-model="form.name"
-              @input="generateSlug"
               type="text"
               placeholder="اكتب اسم المنتج بالعربي"
             />
@@ -225,6 +242,7 @@ const saveColorsToForm = () => {
             <input
               class="form-control"
               v-model="form.name_en"
+              @input="generateSlug"
               type="text"
               placeholder="Product name in English"
             />
@@ -434,6 +452,18 @@ const saveColorsToForm = () => {
             <div v-if="form.errors.sku" class="text-danger">{{ form.errors.sku }}</div>
           </div>
 
+          <!-- كود المنتج -->
+          <div class="col-md-6">
+            <label class="form-label">كود المنتج</label>
+            <input
+              class="form-control"
+              v-model="form.product_code"
+              type="text"
+              placeholder="كود المنتج"
+            />
+            <div v-if="form.errors.product_code" class="text-danger">{{ form.errors.product_code }}</div>
+          </div>
+
           <!-- الشحن -->
           <div class="col-12">
             <h5>معلومات الشحن</h5>
@@ -507,8 +537,31 @@ const saveColorsToForm = () => {
             <h5>صور المنتج</h5>
           </div>
 
+          <!-- الصورة الرئيسية -->
           <div class="col-12">
-            <label class="form-label">رفع الصور</label>
+            <label class="form-label">الصورة الرئيسية *</label>
+            <input
+              class="form-control"
+              type="file"
+              accept="image/*"
+              @change="handleMainImageUpload"
+            />
+            <small class="text-muted">الصورة الرئيسية التي ستظهر في صفحة تفاصيل المنتج</small>
+            <div v-if="form.errors.main_image" class="text-danger">{{ form.errors.main_image }}</div>
+            
+            <!-- معاينة الصورة الرئيسية -->
+            <div v-if="mainImagePreview" class="mt-3">
+              <img
+                :src="mainImagePreview"
+                class="img-fluid rounded"
+                style="height: 200px; object-fit: cover; width: auto; max-width: 300px;"
+                alt="Main image preview"
+              />
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">صور إضافية</label>
             <input
               class="form-control"
               type="file"
@@ -516,7 +569,7 @@ const saveColorsToForm = () => {
               accept="image/*"
               @change="handleImageUpload"
             />
-            <small class="text-muted">يمكنك رفع عدة صور</small>
+            <small class="text-muted">يمكنك رفع عدة صور إضافية</small>
             <div v-if="form.errors.images" class="text-danger">{{ form.errors.images }}</div>
           </div>
 

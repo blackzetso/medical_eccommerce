@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Slider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class SliderController extends Controller
@@ -45,20 +44,27 @@ class SliderController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'link' => 'nullable|url|max:255',
-            'button_text' => 'nullable|string|max:255',
             'sort_order' => 'required|integer|min:0',
             'status' => 'boolean'
         ]);
 
-        // معالجة الصورة
+        // معالجة الصورة - حفظ في public/uploads/sliders
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('sliders', 'public');
-            $validated['image'] = '/storage/' . $path;
-            Log::info('Stored slider image at: ' . $path);
+            $image = $request->file('image');
+            $imageName = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
+            
+            // التأكد من وجود المجلد
+            $uploadPath = public_path('uploads/sliders');
+            if (!file_exists($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+            
+            $image->move($uploadPath, $imageName);
+            $validated['image'] = '/uploads/sliders/' . $imageName;
+            Log::info('Stored slider image at: ' . $validated['image']);
         }
 
         Slider::create($validated);
@@ -95,11 +101,9 @@ class SliderController extends Controller
         $slider = Slider::findOrFail($id);
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'link' => 'nullable|url|max:255',
-            'button_text' => 'nullable|string|max:255',
             'sort_order' => 'required|integer|min:0',
             'status' => 'boolean'
         ]);
@@ -108,17 +112,36 @@ class SliderController extends Controller
         if ($request->hasFile('image')) {
             // حذف الصورة القديمة
             if ($slider->image) {
-                $oldPath = str_replace('/storage/', '', $slider->image);
-                if (Storage::disk('public')->exists($oldPath)) {
-                    Storage::disk('public')->delete($oldPath);
-                    Log::info('Deleted old slider image: ' . $oldPath);
+                // دعم المسارات القديمة (storage) والجديدة (public)
+                $oldPath = $slider->image;
+                if (strpos($oldPath, '/storage/') === 0) {
+                    // مسار قديم في storage
+                    $relativePath = str_replace('/storage/', '', $oldPath);
+                    $fullPath = storage_path('app/public/' . $relativePath);
+                } else {
+                    // مسار جديد في public
+                    $fullPath = public_path($oldPath);
+                }
+                
+                if (file_exists($fullPath)) {
+                    unlink($fullPath);
+                    Log::info('Deleted old slider image: ' . $fullPath);
                 }
             }
 
-            // رفع الصورة الجديدة
-            $path = $request->file('image')->store('sliders', 'public');
-            $validated['image'] = '/storage/' . $path;
-            Log::info('Stored new slider image at: ' . $path);
+            // رفع الصورة الجديدة إلى public/uploads/sliders
+            $image = $request->file('image');
+            $imageName = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
+            
+            // التأكد من وجود المجلد
+            $uploadPath = public_path('uploads/sliders');
+            if (!file_exists($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+            
+            $image->move($uploadPath, $imageName);
+            $validated['image'] = '/uploads/sliders/' . $imageName;
+            Log::info('Stored new slider image at: ' . $validated['image']);
         }
 
         $slider->update($validated);
@@ -134,12 +157,23 @@ class SliderController extends Controller
     {
         $slider = Slider::findOrFail($id);
         
-        // حذف الصورة من storage
+        // حذف الصورة - دعم المسارات القديمة والجديدة
         if ($slider->image) {
-            $imagePath = str_replace('/storage/', '', $slider->image);
-            if (Storage::disk('public')->exists($imagePath)) {
-                Storage::disk('public')->delete($imagePath);
-                Log::info('Deleted slider image: ' . $imagePath);
+            $imagePath = $slider->image;
+            
+            // دعم المسارات القديمة (storage) والجديدة (public)
+            if (strpos($imagePath, '/storage/') === 0) {
+                // مسار قديم في storage
+                $relativePath = str_replace('/storage/', '', $imagePath);
+                $fullPath = storage_path('app/public/' . $relativePath);
+            } else {
+                // مسار جديد في public
+                $fullPath = public_path($imagePath);
+            }
+            
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+                Log::info('Deleted slider image: ' . $fullPath);
             }
         }
         

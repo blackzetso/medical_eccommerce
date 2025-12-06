@@ -86,12 +86,33 @@ class WebController extends Controller
         
         // Handle search query
         if ($request->has('search') && $request->search) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('name', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('sku', 'like', '%' . $searchTerm . '%');
-            });
+            $searchTerm = trim($request->search);
+            
+            // Check if search term matches product_code exactly
+            $hasExactProductCode = Product::where('status', true)
+                ->whereNotNull('product_code')
+                ->where('product_code', '=', $searchTerm)
+                ->exists();
+            
+            // Check if search term matches sku exactly
+            $hasExactSku = Product::where('status', true)
+                ->whereNotNull('sku')
+                ->where('sku', '=', $searchTerm)
+                ->exists();
+            
+            if ($hasExactProductCode) {
+                // Exact match for product_code only
+                $query->where('product_code', '=', $searchTerm);
+            } elseif ($hasExactSku) {
+                // Exact match for sku only
+                $query->where('sku', '=', $searchTerm);
+            } else {
+                // Partial match for name and description
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('name', 'like', '%' . $searchTerm . '%')
+                      ->orWhere('description', 'like', '%' . $searchTerm . '%');
+                });
+            }
         }
         
         $products = $query->paginate(12);

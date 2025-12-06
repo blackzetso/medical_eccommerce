@@ -1,8 +1,12 @@
 <script setup>
 import { ref, onMounted, computed, watch, nextTick } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import FrontLayout from '@/Pages/Front/Theme1/Layout/App.vue';
+import VueEasyLightbox from 'vue-easy-lightbox';
+import { useTranslations } from '@/composables/translations';
+
+const { t } = useTranslations();
 const props = defineProps({
     category: Object,
     categories: Array,
@@ -23,7 +27,20 @@ const selectedColor = ref(null);
 const quantity = ref(1);
 const baseProductPrice = ref(0);
 
+// Lightbox state
+const visibleRef = ref(false);
+const indexRef = ref(0);
+
 const getProductImage = (product) => {
+    // استخدام main_image إذا كان موجوداً
+    if (product.main_image) {
+        let img = product.main_image;
+        if (!img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
+        }
+        return img;
+    }
+    // وإلا استخدم أول صورة من المصفوفة
     if (product.images && product.images.length > 0) {
         let img = product.images[0];
         if (!img.startsWith('http') && !img.startsWith('/')) {
@@ -32,6 +49,43 @@ const getProductImage = (product) => {
         return img;
     }
     return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
+};
+
+// دالة للحصول على جميع صور المنتج (main_image + images)
+const getAllProductImages = () => {
+    const images = [];
+    
+    // إضافة الصورة الرئيسية أولاً
+    if (props.product.main_image) {
+        let img = props.product.main_image;
+        if (!img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
+        }
+        images.push(img);
+    }
+    
+    // إضافة باقي الصور
+    if (props.product.images && props.product.images.length > 0) {
+        props.product.images.forEach(img => {
+            // تجنب إضافة الصورة الرئيسية مرة أخرى إذا كانت موجودة في المصفوفة
+            if (props.product.main_image && img === props.product.main_image) {
+                return;
+            }
+            let formattedImg = img;
+            if (!formattedImg.startsWith('http') && !formattedImg.startsWith('/')) {
+                formattedImg = '/' + formattedImg;
+            }
+            images.push(formattedImg);
+        });
+    }
+    
+    return images.length > 0 ? images : ['/front/theme1/images/demoes/demo3/products/product-1.jpg'];
+};
+
+// دالة لفتح lightbox
+const openLightbox = (index) => {
+    indexRef.value = index;
+    visibleRef.value = true;
 };
 
 // التحقق من أن الخاصية هي لون
@@ -221,8 +275,11 @@ const formatPrice = (price) => {
     return numPrice.toFixed(2);
 };
 
-import { router } from '@inertiajs/vue3';
-import { usePage } from '@inertiajs/vue3';
+// التحقق من تسجيل الدخول
+const page = usePage();
+const isAuthenticated = computed(() => {
+    return page.props.auth?.user !== null && page.props.auth?.user !== undefined;
+});
 
 // زيادة الكمية
 const increaseQuantity = () => {
@@ -242,9 +299,9 @@ const addToCart = (product) => {
     // التحقق من المخزون
     if (!isProductAvailable.value) {
         if (window.$toast) {
-            window.$toast.error('المنتج غير متوفر في المخزون');
+            window.$toast.error(t('product_not_available_in_stock'));
         } else {
-            alert('المنتج غير متوفر في المخزون');
+            alert(t('product_not_available_in_stock'));
         }
         return;
     }
@@ -252,9 +309,9 @@ const addToCart = (product) => {
     // التحقق من الخصائص - سيتم التحقق في الـ controller أيضاً
     if (!areAllAttributesSelected.value) {
         if (window.$toast) {
-            window.$toast.error('يرجى تحديد جميع الخصائص المطلوبة');
+            window.$toast.error(t('please_select_all_required_attributes'));
         } else {
-            alert('يرجى تحديد جميع الخصائص المطلوبة');
+            alert(t('please_select_all_required_attributes'));
         }
         return;
     }
@@ -281,15 +338,15 @@ const sendToCart = (product, attributes) => {
             } else {
                 // رسالة نجاح افتراضية
                 if (window.$toast) {
-                    window.$toast.success('تم إضافة المنتج إلى السلة بنجاح');
+                    window.$toast.success(t('product_added_to_cart_success'));
                 } else {
-                    alert('تم إضافة المنتج إلى السلة بنجاح');
+                    alert(t('product_added_to_cart_success'));
                 }
             }
         },
         onError: (errors) => {
             console.error('خطأ في إضافة المنتج إلى السلة:', errors);
-            let errorMessage = 'حدث خطأ أثناء إضافة المنتج إلى السلة';
+            let errorMessage = t('error_adding_to_cart');
             
             if (errors.message) {
                 errorMessage = errors.message;
@@ -329,15 +386,15 @@ const addToFavorites = (product) => {
             } else {
                 // رسالة نجاح افتراضية
                 if (window.$toast) {
-                    window.$toast.success('تم إضافة المنتج إلى المفضلة بنجاح');
+                    window.$toast.success(t('product_added_to_favorites_success'));
                 } else {
-                    alert('تم إضافة المنتج إلى المفضلة بنجاح');
+                    alert(t('product_added_to_favorites_success'));
                 }
             }
         },
         onError: (errors) => {
             console.error('خطأ في إضافة المنتج إلى المفضلة:', errors);
-            let errorMessage = 'حدث خطأ أثناء إضافة المنتج إلى المفضلة';
+            let errorMessage = t('error_adding_to_favorites');
             
             if (errors.message) {
                 errorMessage = errors.message;
@@ -481,9 +538,9 @@ onMounted(() => {
                                     </div>
 
                                     <div class="product-single-carousel owl-carousel owl-theme show-nav-hover">
-                                        <template v-if="product.images && product.images.length">
-                                            <div class="product-item" v-for="(img, idx) in product.images" :key="idx">
-                                                <img class="product-single-image" :src="getProductImage({ images: [img] })" :data-zoom-image="getProductImage({ images: [img] })" width="468" height="468" alt="product" />
+                                        <template v-if="getAllProductImages().length">
+                                            <div class="product-item" v-for="(img, idx) in getAllProductImages()" :key="idx">
+                                                <img class="product-single-image" :src="img" :data-zoom-image="img" width="468" height="468" alt="product" style="cursor: pointer;" @click="openLightbox(idx)" />
                                             </div>
                                         </template>
                                         <template v-else>
@@ -499,9 +556,9 @@ onMounted(() => {
                                 </div>
 
                                 <div class="prod-thumbnail owl-dots">
-                                    <template v-if="product.images && product.images.length">
-                                        <div class="owl-dot" v-for="(img, idx) in product.images" :key="idx">
-                                            <img :src="getProductImage({ images: [img] })" width="110" height="110" alt="product-thumbnail" />
+                                    <template v-if="getAllProductImages().length">
+                                        <div class="owl-dot" v-for="(img, idx) in getAllProductImages()" :key="idx">
+                                            <img :src="img" width="110" height="110" alt="product-thumbnail" style="cursor: pointer;" @click="openLightbox(idx)" />
                                         </div>
                                     </template>
                                     <template v-else>
@@ -515,13 +572,19 @@ onMounted(() => {
 
                             <div class="col-md-6 product-single-details">
                                 <h1 class="product-title">{{ product.name }}</h1>
+                                <h2 v-if="product.name_en" class="product-title-en" style="font-size: 1.2rem; color: #666; font-weight: normal; margin-top: 0.5rem;">{{ product.name_en }}</h2>
 
                                 <!-- End .price-box -->
 
                                 <hr class="short-divider">
 
-                                <div class="price-box">
+                                <div v-if="isAuthenticated" class="price-box">
                                     <span class="product-price">{{ product.price }} {{ currency }}</span>
+                                </div>
+                                <div v-else class="price-box">
+                                    <p class="text-muted" style="font-size: 1.1rem;">
+                                        <Link :href="route('client.login')" class="text-primary">يرجى تسجيل الدخول</Link> لعرض الأسعار
+                                    </p>
                                 </div>
 
                                 <div class="product-desc">
@@ -621,7 +684,7 @@ onMounted(() => {
                                 </div>
 
                                 <!-- عرض السعر الإجمالي -->
-                                <div class="custom-total-price-box" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div v-if="isAuthenticated" class="custom-total-price-box" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                                             <span style="font-size: 16px; color: #666;">السعر الأساسي:</span>
@@ -641,6 +704,11 @@ onMounted(() => {
                                             <span style="font-size: 20px; color: #666;">{{ currency }}</span>
                                         </div>
                                     </div>
+                                </div>
+                                <div v-else class="custom-total-price-box" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef; text-align: center;">
+                                    <p class="text-muted" style="font-size: 1.1rem; margin: 0;">
+                                        <Link :href="route('client.login')" class="text-primary">يرجى تسجيل الدخول</Link> لعرض الأسعار
+                                    </p>
                                 </div>
 
                                 <div class="product-action" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -689,6 +757,13 @@ onMounted(() => {
             </div><!-- End .row -->
         </div><!-- End .container -->
 
-    
+        <!-- Lightbox for product images -->
+        <vue-easy-lightbox
+            :visible="visibleRef"
+            :imgs="getAllProductImages()"
+            :index="indexRef"
+            @hide="visibleRef = false"
+        />
+
     </FrontLayout>
 </template>

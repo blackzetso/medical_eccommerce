@@ -27,6 +27,7 @@ const form = useForm({
   stock_quantity: props.product.stock_quantity,
   manage_stock: props.product.manage_stock,
   sku: props.product.sku,
+  product_code: props.product.product_code || '',
   weight: props.product.weight,
   dimensions: props.product.dimensions,
   category_id: props.product.category_id,
@@ -35,6 +36,8 @@ const form = useForm({
   status: props.product.status,
   meta_title: props.product.meta_title,
   meta_description: props.product.meta_description,
+  main_image: null,
+  existing_main_image: props.product.main_image || null,
   images: [],
   existing_images: props.product.images || [],
   attributes: props.productAttributes || [],
@@ -43,17 +46,33 @@ const form = useForm({
 
 const imagePreview = ref([])
 const existingImages = ref([...form.existing_images])
+const mainImagePreview = ref(props.product.main_image || null)
 const colorCount = ref(props.product.colors ? props.product.colors.length : 0); // عدد الألوان
 const colorInputs = ref(props.product.colors || []); // قائمة الألوان
 
-// ✅ توليد slug تلقائياً من الاسم
+// ✅ توليد slug تلقائياً من الاسم الإنجليزي
 const generateSlug = () => {
-  form.slug = form.name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim('-')
+  if (form.name_en && form.name_en.trim()) {
+    form.slug = form.name_en
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim('-')
+  }
+}
+
+// ✅ رفع الصورة الرئيسية
+const handleMainImageUpload = (event) => {
+  const file = event.target.files[0]
+  if (file && file.type.startsWith('image/')) {
+    form.main_image = file
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      mainImagePreview.value = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
 }
 
 // ✅ رفع الصور
@@ -228,7 +247,6 @@ function updateForm() {
               <input
                 class="form-control"
                 v-model="form.name"
-                @input="generateSlug"
                 type="text"
                 placeholder="اكتب اسم المنتج بالعربي"
               />
@@ -241,6 +259,7 @@ function updateForm() {
               <input
                 class="form-control"
                 v-model="form.name_en"
+                @input="generateSlug"
                 type="text"
                 placeholder="Product name in English"
               />
@@ -449,6 +468,18 @@ function updateForm() {
               <div v-if="form.errors.sku" class="text-danger">{{ form.errors.sku }}</div>
             </div>
 
+            <!-- كود المنتج -->
+            <div class="col-md-6">
+              <label class="form-label">كود المنتج</label>
+              <input
+                class="form-control"
+                v-model="form.product_code"
+                type="text"
+                placeholder="كود المنتج"
+              />
+              <div v-if="form.errors.product_code" class="text-danger">{{ form.errors.product_code }}</div>
+            </div>
+
             <!-- الشحن -->
             <div class="col-12">
               <h5>معلومات الشحن</h5>
@@ -517,9 +548,48 @@ function updateForm() {
               <div v-if="form.errors.brand_id" class="text-danger">{{ form.errors.brand_id }}</div>
             </div>
 
+            <!-- الصورة الرئيسية -->
+            <div class="col-12">
+              <h5>الصورة الرئيسية</h5>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">الصورة الرئيسية</label>
+              <input
+                class="form-control"
+                type="file"
+                accept="image/*"
+                @change="handleMainImageUpload"
+              />
+              <small class="text-muted">الصورة الرئيسية التي ستظهر في صفحة تفاصيل المنتج</small>
+              <div v-if="form.errors.main_image" class="text-danger">{{ form.errors.main_image }}</div>
+              
+              <!-- معاينة الصورة الرئيسية الحالية -->
+              <div v-if="mainImagePreview && !form.main_image" class="mt-3">
+                <p class="text-muted">الصورة الرئيسية الحالية:</p>
+                <img
+                  :src="mainImagePreview"
+                  class="img-fluid rounded"
+                  style="height: 200px; object-fit: cover; width: auto; max-width: 300px;"
+                  alt="Current main image"
+                />
+              </div>
+              
+              <!-- معاينة الصورة الرئيسية الجديدة -->
+              <div v-if="form.main_image && mainImagePreview" class="mt-3">
+                <p class="text-muted">الصورة الرئيسية الجديدة:</p>
+                <img
+                  :src="mainImagePreview"
+                  class="img-fluid rounded"
+                  style="height: 200px; object-fit: cover; width: auto; max-width: 300px;"
+                  alt="New main image preview"
+                />
+              </div>
+            </div>
+
             <!-- الصور الحالية -->
             <div class="col-12" v-if="existingImages.length">
-              <h5>الصور الحالية</h5>
+              <h5>الصور الإضافية الحالية</h5>
               <div class="row g-3">
                 <div
                   v-for="(image, index) in existingImages"
@@ -546,11 +616,11 @@ function updateForm() {
 
             <!-- رفع صور جديدة -->
             <div class="col-12">
-              <h5>إضافة صور جديدة</h5>
+              <h5>إضافة صور إضافية جديدة</h5>
             </div>
 
             <div class="col-12">
-              <label class="form-label">رفع الصور</label>
+              <label class="form-label">رفع الصور الإضافية</label>
               <input
                 class="form-control"
                 type="file"

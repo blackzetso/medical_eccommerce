@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Category extends Model
@@ -48,12 +47,17 @@ class Category extends Model
             return null;
         }
 
-        // If already a full URL or absolute path, return as is
-        if (Str::startsWith($image, ['http://', 'https://', '/'])) {
+        // If already a full URL, return as is
+        if (Str::startsWith($image, ['http://', 'https://'])) {
             return $image;
         }
 
-        // Generate a URL using the public storage symlink (/storage)
-        return asset('storage/' . ltrim($image, '/'));
+        // If already starts with /, return as is (supports both /uploads/ and /storage/)
+        if (Str::startsWith($image, '/')) {
+            return $image;
+        }
+
+        // For old paths without /, assume they're in public/uploads
+        return '/uploads/categories/' . ltrim($image, '/');
     }
 }
