@@ -4,14 +4,14 @@
             <div class="footer-top top-border d-flex align-items-center justify-content-between flex-wrap">
                 <div class="footer-left widget-newsletter d-md-flex align-items-center">
                     <div class="widget-newsletter-info">
-                        <h5 class="widget-newsletter-title text-uppercase m-b-1">اشترك في النشرة البريدية</h5>
-                        <p class="widget-newsletter-content mb-0">احصل على أحدث المعلومات حول الفعاليات والعروض والخصومات.</p>
+                        <h5 class="widget-newsletter-title text-uppercase m-b-1">{{ t('subscribe_to_newsletter') }}</h5>
+                        <p class="widget-newsletter-content mb-0">{{ t('get_latest_info') }}</p>
                     </div>
-                    <form action="#">
+                    <form action="#" style="margin-right: 2rem; margin-left: 2rem;">
                         <div class="footer-submit-wrapper d-flex">
-                            <input type="email" class="form-control" placeholder="البريد الإلكتروني..." size="40"
+                            <input type="email" class="form-control" :placeholder="t('email') + '...'" size="40"
                                 required>
-                            <button type="submit" class="btn btn-dark btn-sm">اشترك</button>
+                            <button type="submit" class="btn btn-dark btn-sm">{{ t('subscribe') }}</button>
                         </div>
                     </form>
                 </div>
@@ -28,12 +28,12 @@
                 <div class="row">
                     <div class="col-lg-6 col-xl-4">
                         <div class="widget">
-                            <h4 class="widget-title">معلومات التواصل</h4>
+                            <h4 class="widget-title">{{ t('contact_info') }}</h4>
 
                             <div class="row">
                                 <div class="col-sm-6">
                                     <div class="contact-widget">
-                                        <h4 class="widget-title">العنوان:</h4>
+                                        <h4 class="widget-title">{{ t('address') }}:</h4>
                                         <a href="#" v-if="footerSettings.address">{{ footerSettings.address }}</a>
                                         <span v-else class="text-muted">-</span>
                                     </div>
@@ -41,7 +41,7 @@
 
                                 <div class="col-sm-6 pl-xl-0">
                                     <div class="contact-widget">
-                                        <h4 class="widget-title">الهاتف:</h4>
+                                        <h4 class="widget-title">{{ t('phone') }}:</h4>
                                         <a :href="`tel:${footerSettings.phone}`" v-if="footerSettings.phone">{{ footerSettings.phone }}</a>
                                         <span v-else class="text-muted">-</span>
                                     </div>
@@ -49,7 +49,7 @@
 
                                 <div class="col-sm-6">
                                     <div class="contact-widget email">
-                                        <h4 class="widget-title">البريد الإلكتروني:</h4>
+                                        <h4 class="widget-title">{{ t('email') }}:</h4>
                                         <a :href="`mailto:${footerSettings.email}`" v-if="footerSettings.email">{{ footerSettings.email }}</a>
                                         <span v-else class="text-muted">-</span>
                                     </div>
@@ -57,7 +57,7 @@
 
                                 <div class="col-sm-6 pl-xl-0">
                                     <div class="contact-widget">
-                                        <h4 class="widget-title">أيام وساعات العمل:</h4>
+                                        <h4 class="widget-title">{{ t('working_hours') }}:</h4>
                                         <a href="#" v-if="footerSettings.working_hours">{{ footerSettings.working_hours }}</a>
                                         <span v-else class="text-muted">-</span>
                                     </div>
@@ -67,27 +67,27 @@
                     </div>
                     <div class="col-sm-6 col-lg-3 col-xl-4">
                         <div class="widget">
-                            <h4 class="widget-title">حسابي</h4>
+                            <h4 class="widget-title">{{ t('my_account') }}</h4>
                             <div class="links link-parts row">
                                 <ul class="link-part col-xl-4 mb-0">
-                                    <li><a href="demo3-about.html">من نحن</a></li>
-                                    <li><Link :href="route('web.contact')">اتصل بنا</Link></li>
-                                    <li><a href="dashboard.html">حسابي</a></li>
+                                    <li><Link :href="route('web.about')">{{ t('about_us') }}</Link></li>
+                                    <li><Link :href="route('web.contact')">{{ t('contact_us') }}</Link></li>
+                                    <li><Link :href="route('client.dashboard')">{{ t('my_account') }}</Link></li>
                                 </ul> 
                             </div>
                         </div><!-- End .widget -->
                     </div>
                     <div class="col-sm-6 col-lg-3 col-xl-4">
                         <div class="widget">
-                            <h4 class="widget-title text-center">روابط سريعة</h4>
+                            <h4 class="widget-title text-center">{{ t('quick_links') }}</h4>
                             <div class="links link-parts text-center row">
                                 <ul class="link-part col-xl-6 mb-0">
-                                    <li><Link :href="route('web.about')">من نحن</Link></li>
-                                    <li><Link :href="route('web.privacy')">سياسة الخصوصية</Link></li>
+                                    <li><Link :href="route('web.about')">{{ t('about_us') }}</Link></li>
+                                    <li><Link :href="route('web.privacy')">{{ t('privacy_policy') }}</Link></li>
                                 </ul>
                                 <ul class="link-part col-xl-6 pl-xl-2">
-                                    <li><Link :href="route('web.terms')">شروط الاستخدام</Link></li>
-                                    <li><Link :href="route('web.refund')">سياسة الاسترداد</Link></li>
+                                    <li><Link :href="route('web.terms')">{{ t('terms_of_use') }}</Link></li>
+                                    <li><Link :href="route('web.refund')">{{ t('refund_policy') }}</Link></li>
                                 </ul>
                             </div>
                         </div><!-- End .widget -->
@@ -111,7 +111,9 @@
 import { usePage, Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import { computed } from 'vue'
+import { useTranslations } from '@/composables/translations'
 
+const { t } = useTranslations()
 const page = usePage()
 const asset = (path) => {
     return '/' + path

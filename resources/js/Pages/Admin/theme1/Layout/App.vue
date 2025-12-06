@@ -202,7 +202,7 @@
                                 <div class="nav my-3 my-xl-0 flex-nowrap align-items-center">
                                     <div class="nav-item w-100">
                                         <form class="position-relative">
-                                            <input class="form-control pe-5 bg-secondary bg-opacity-10 border-0" type="search" placeholder="Search" aria-label="Search">
+                                            <input class="form-control pe-5 bg-secondary bg-opacity-10 border-0" type="search" :placeholder="t('search')" :aria-label="t('search')">
                                             <button class="bg-transparent px-2 py-0 border-0 position-absolute top-50 end-0 translate-middle-y" type="submit"><i class="fas fa-search fs-6 text-primary"></i></button>
                                         </form>
                                     </div>
@@ -364,10 +364,10 @@
                                         </li>
                         <li> <hr class="dropdown-divider"></li>
                                         <!-- Links -->
-                                        <li><a class="dropdown-item" href="#"><i class="bi bi-person fa-fw me-2"></i>Edit Profile</a></li>
-                                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>Account Settings</a></li>
-                                        <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>Help</a></li>
-                                            <li><button @click="handleLogout" class="dropdown-item bg-danger-soft-hover"><i class="bi bi-power fa-fw me-2"></i>Sign Out</button></li>
+                                        <li><a class="dropdown-item" href="#"><i class="bi bi-person fa-fw me-2"></i>{{ t('edit_profile') }}</a></li>
+                                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>{{ t('account_settings') }}</a></li>
+                                        <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>{{ t('help') }}</a></li>
+                                            <li><button @click="handleLogout" class="dropdown-item bg-danger-soft-hover"><i class="bi bi-power fa-fw me-2"></i>{{ t('sign_out') }}</button></li>
                                         <li> <hr class="dropdown-divider"></li>
 
                                         <!-- Dark mode options START -->

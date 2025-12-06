@@ -122,17 +122,17 @@
                 </ul>
 
                 <ul class="mobile-menu">
-                    <li><a href="login.html">My Account</a></li>
-                    <li><a href="demo3-contact.html">Contact Us</a></li>
-                    <li><a href="blog.html">Blog</a></li>
-                    <li><a href="wishlist.html">My Wishlist</a></li>
-                    <li><a href="cart.html">Cart</a></li>
-                    <li><a href="login.html" class="login-link">Log In</a></li>
+                    <li><a href="login.html">{{ t('my_account') }}</a></li>
+                    <li><a href="demo3-contact.html">{{ t('contact_us') }}</a></li>
+                    <li><a href="blog.html">{{ t('blog') }}</a></li>
+                    <li><a href="wishlist.html">{{ t('my_wishlist') }}</a></li>
+                    <li><a href="cart.html">{{ t('cart') }}</a></li>
+                    <li><a href="login.html" class="login-link">{{ t('login') }}</a></li>
                 </ul>
             </nav><!-- End .mobile-nav -->
 
             <form class="search-wrapper mb-2" action="#">
-                <input type="text" class="form-control mb-0" placeholder="Search..." required />
+                <input type="text" class="form-control mb-0" :placeholder="t('search') + '...'" required />
                 <button class="btn icon-search text-white bg-transparent p-0" type="submit"></button>
             </form>
 
@@ -149,8 +149,12 @@
 </template>
 
 <script setup>
+import { Link } from '@inertiajs/vue3'
+import { useTranslations } from '@/composables/translations'
+
+const { t } = useTranslations()
+
 const asset = (path) => {
     return '/' + path
 }
-import { Link } from '@inertiajs/vue3'
 </script>

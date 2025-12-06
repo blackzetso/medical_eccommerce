@@ -3,6 +3,9 @@ import { ref } from 'vue'
 import { useForm, Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Pages/Front/Theme1/Layout/App.vue'
 import { route } from 'ziggy-js'
+import { useTranslations } from '@/composables/translations'
+
+const { t } = useTranslations()
 
 const props = defineProps({
 		sliders: Array,
@@ -40,14 +43,14 @@ function submit() {
 					<nav aria-label="breadcrumb" class="breadcrumb-nav">
 						<div class="container">
 							<ol class="breadcrumb">
-								<li class="breadcrumb-item"><Link :href="route('/')">Home</Link></li>
+								<li class="breadcrumb-item"><Link :href="route('/')">{{ t('home') }}</Link></li>
 								<li class="breadcrumb-item active" aria-current="page">
-									My Account
+									{{ t('my_account') }}
 								</li>
 							</ol>
 						</div>
 					</nav>
-					<h1>My Account</h1>
+					<h1>{{ t('my_account') }}</h1>
 				</div>
 			</div>
 			<div class="container login-container">
@@ -56,33 +59,33 @@ function submit() {
 						<div class="row">
 							<div class="col-md-6">
 								<div class="heading mt-5 mb-1">
-									<h2 class="title">Login</h2>
+									<h2 class="title">{{ t('login') }}</h2>
 								</div>
 								<form @submit.prevent="submit">
 									<label for="login-email">
-										Username or email address
+										{{ t('username_or_email') }}
 										<span class="required">*</span>
 									</label>
-									<input type="email" class="form-input form-wide" id="login-email" v-model="form.email" required />
+									<input type="email" class="form-input form-wide" id="login-email" v-model="form.email" :placeholder="t('email')" required />
 									<div v-if="form.errors.email" class="text-danger small mb-2">{{ form.errors.email }}</div>
 
 									<label for="login-password">
-										Password
+										{{ t('password') }}
 										<span class="required">*</span>
 									</label>
-									<input type="password" class="form-input form-wide" id="login-password" v-model="form.password" required />
+									<input type="password" class="form-input form-wide" id="login-password" v-model="form.password" :placeholder="t('password')" required />
 									<div v-if="form.errors.password" class="text-danger small mb-2">{{ form.errors.password }}</div>
 
 									<div class="form-footer">
 										<div class="custom-control custom-checkbox mb-0">
 											<input type="checkbox" class="custom-control-input" id="lost-password" v-model="form.remember" />
-											<label class="custom-control-label mb-0" for="lost-password">Remember me</label>
+											<label class="custom-control-label mb-0" for="lost-password">{{ t('remember_me') }}</label>
 										</div>
-										<Link :href="route('password.request')" class="forget-password text-dark form-footer-right">Forgot Password?</Link>
+										<Link :href="route('password.request')" class="forget-password text-dark form-footer-right">{{ t('forgot_password') }}</Link>
 									</div>
 									<button type="submit" class="btn btn-dark btn-md w-100" :disabled="form.processing || submitting">
-										<span v-if="form.processing || submitting">جاري تسجيل الدخول...</span>
-										<span v-else>LOGIN</span>
+										<span v-if="form.processing || submitting">{{ t('logging_in') }}</span>
+										<span v-else>{{ t('login') }}</span>
 									</button>
 									<div v-if="form.errors.general" class="text-danger small mt-2">{{ form.errors.general }}</div>
 								</form>

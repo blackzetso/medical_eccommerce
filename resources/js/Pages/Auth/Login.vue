@@ -10,6 +10,9 @@ import TextInput from '@/Components/TextInput.vue';
 //import { route } from 'vendor/tightenco/ziggy/src/js';
 import { route } from 'ziggy-js';
 import { Ziggy } from '@/ziggy';
+import { useTranslations } from '@/composables/translations';
+
+const { t } = useTranslations();
 
 
 defineProps({
@@ -53,8 +56,8 @@ const submit = () => {
                         <div class="p-3 p-lg-5">
                             <!-- Title -->
                             <div class="text-center">
-                                <h2 class="fw-bold">Welcome to our largest community</h2>
-                                <p class="mb-0 h6 fw-light">Let's learn something new today!</p>
+                                <h2 class="fw-bold">{{ t('welcome_to_community') }}</h2>
+                                <p class="mb-0 h6 fw-light">{{ t('lets_learn_today') }}</p>
                             </div>
                             <!-- SVG Image -->
                             <img src="/admin/theme1/images/element/02.svg" class="mt-5" alt="">
@@ -76,7 +79,7 @@ const submit = () => {
                                     </li>
                                 </ul>
                                 <!-- Content -->
-                                <p class="mb-0 h6 fw-light ms-0 ms-sm-3">4k+ Clients joined us, now it's your turn.</p>
+                                <p class="mb-0 h6 fw-light ms-0 ms-sm-3">{{ t('clients_joined_us') }}</p>
                             </div>
                         </div>
                     </div>
@@ -87,29 +90,29 @@ const submit = () => {
                             <div class="col-sm-10 col-xl-8 m-auto">
                                 <!-- Title -->
                                 <span class="mb-0 fs-1">👋</span>
-                                <h1 class="fs-2">Login into Medical Media!</h1>
-                                <p class="lead mb-4">Nice to see you! Please log in with your account.</p>
+                                <h1 class="fs-2">{{ t('login_to_medical_media') }}</h1>
+                                <p class="lead mb-4">{{ t('nice_to_see_you') }}</p>
 
                                 <!-- Form START -->
                                 <form @submit.prevent="submit">
                                     <!-- Email -->
                                     <div class="mb-4">
-                                        <InputLabel for="email" class="form-label" value="Email address *" />
+                                        <InputLabel for="email" class="form-label" :value="t('email_address') + ' *'" />
                                         <div class="input-group input-group-lg">
                                             <span class="input-group-text bg-light rounded-start border-0 text-secondary px-3"><i class="bi bi-envelope-fill"></i></span>
-                                            <TextInput  id="email" v-model="form.email" type="email" required autofocus class="form-control border-0 bg-light rounded-end ps-1" placeholder="E-mail" />
+                                            <TextInput  id="email" v-model="form.email" type="email" required autofocus class="form-control border-0 bg-light rounded-end ps-1" :placeholder="t('email')" />
                                         </div>
                                         <InputError class="mt-2" :message="form.errors.email" />
                                     </div>
                                     <!-- Password -->
                                     <div class="mb-4">
-                                        <InputLabel for="password" class="form-label" value="Password *" />
+                                        <InputLabel for="password" class="form-label" :value="t('password') + ' *'" />
                                         <div class="input-group input-group-lg">
                                             <span class="input-group-text bg-light rounded-start border-0 text-secondary px-3"><i class="fas fa-lock"></i></span>
                                             <TextInput id="password" v-model="form.password" type="password" class="form-control border-0 bg-light rounded-end ps-1" required autocomplete="current-password"/>
                                         </div>
                                         <div id="passwordHelpBlock" class="form-text">
-                                            Your password must be 8 characters at least
+                                            {{ t('password_min_length') }}
                                         </div>
                                         <InputError class="mt-2" :message="form.errors.password" />
                                     </div>
@@ -117,11 +120,11 @@ const submit = () => {
                                     <div class="mb-4 d-flex justify-content-between">
                                         <div class="form-check">
                                             <Checkbox v-model:checked="form.remember" class="form-check-input" name="remember" />
-                                            <label class="form-check-label" for="exampleCheck1">Remember me</label>
+                                            <label class="form-check-label" for="exampleCheck1">{{ t('remember_me') }}</label>
                                         </div>
                                         <div class="text-primary-hover">
                                             <Link v-if="canResetPassword" :href="route('password.request')" class="text-secondary">
-                                                Forgot your password?
+                                                {{ t('forgot_password') }}
                                             </Link>
                                         </div>
                                     </div>
@@ -129,7 +132,7 @@ const submit = () => {
                                     <div class="align-items-center mt-0">
                                         <div class="d-grid">
                                             <PrimaryButton class="btn btn-primary mb-0" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                                                Log in
+                                                {{ t('login') }}
                                             </PrimaryButton>
                                         </div>
                                     </div>
@@ -141,14 +144,14 @@ const submit = () => {
                                     <!-- Divider with text -->
                                     <div class="position-relative my-4">
                                         <hr>
-                                        <p class="small position-absolute top-50 start-50 translate-middle bg-body px-5">Or</p>
+                                        <p class="small position-absolute top-50 start-50 translate-middle bg-body px-5">{{ t('or') }}</p>
                                     </div>
                                 </div>
 
                                 <!-- Sign up link -->
                                 <div class="mt-4 text-center">
-                                    <span>Don't have an account?
-                                        <Link :href="route('register')">Signup here</Link>
+                                    <span>{{ t('dont_have_account') }}
+                                        <Link :href="route('register')">{{ t('signup_here') }}</Link>
                                     </span>
                                 </div>
                             </div>
