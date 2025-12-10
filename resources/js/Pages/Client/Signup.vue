@@ -11,6 +11,7 @@ const form = useForm({
 	phone: '',
 	pharmacy_name: '',
 	address: '',
+	location_url: '',
 	notes: ''
 })
 
@@ -98,17 +99,28 @@ function submit() {
 									<input type="text" class="form-input form-wide" id="signup-pharmacy" v-model="form.pharmacy_name" />
 									<div v-if="form.errors.pharmacy_name" class="text-danger small mb-2">{{ form.errors.pharmacy_name }}</div>
 
-									<label for="signup-address">
-										العنوان
-									</label>
-									<textarea class="form-input form-wide" id="signup-address" v-model="form.address" rows="3"></textarea>
-									<div v-if="form.errors.address" class="text-danger small mb-2">{{ form.errors.address }}</div>
+								<label for="signup-address">
+									العنوان
+								</label>
+								<textarea class="form-input form-wide" id="signup-address" v-model="form.address" rows="3"></textarea>
+								<div v-if="form.errors.address" class="text-danger small mb-2">{{ form.errors.address }}</div>
 
-									<label for="signup-notes">
-										ملاحظات إضافية
-									</label>
-									<textarea class="form-input form-wide" id="signup-notes" v-model="form.notes" rows="3"></textarea>
-									<div v-if="form.errors.notes" class="text-danger small mb-2">{{ form.errors.notes }}</div>
+								<label for="signup-location-url">
+									رابط الموقع (Location URL)
+									<small class="text-muted d-block">
+										يرجى استخدام رابط <strong>تضمين الخريطة</strong> من Google Maps وليس رابط المشاركة.
+										<br>
+										للحصول على الرابط: افتح Google Maps → ابحث عن موقعك → اضغط "مشاركة" → اختر "تضمين خريطة" → انسخ الرابط
+									</small>
+								</label>
+								<input type="url" class="form-input form-wide" id="signup-location-url" v-model="form.location_url" placeholder="https://www.google.com/maps/embed?pb=..." />
+								<div v-if="form.errors.location_url" class="text-danger small mb-2">{{ form.errors.location_url }}</div>
+
+								<label for="signup-notes">
+									ملاحظات إضافية
+								</label>
+								<textarea class="form-input form-wide" id="signup-notes" v-model="form.notes" rows="3"></textarea>
+								<div v-if="form.errors.notes" class="text-danger small mb-2">{{ form.errors.notes }}</div>
 
 									<div class="form-footer mt-3">
 										<Link :href="route('client.login')" class="text-dark">لديك حساب بالفعل؟ تسجيل الدخول</Link>

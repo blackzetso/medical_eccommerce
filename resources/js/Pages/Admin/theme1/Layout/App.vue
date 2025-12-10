@@ -3,6 +3,7 @@
     import { router } from '@inertiajs/vue3'
     import { route } from 'ziggy-js';
     import { useTranslations } from '@/composables/translations'
+    import { computed, onMounted, watch, ref, nextTick } from 'vue'
 
     const page = usePage()
     const { t } = useTranslations()
@@ -22,6 +23,122 @@
         console.log('Translations count:', Object.keys(page.props.translations || {}).length)
         console.log('Sample translation keys:', Object.keys(page.props.translations || {}).slice(0, 5))
     }
+
+    // Function to check if a route is active
+    const isRouteActive = (routeName) => {
+        return route().current(routeName)
+    }
+
+    // Function to check if any of the routes in an array are active
+    const isAnyRouteActive = (routeNames) => {
+        return routeNames.some(name => route().current(name))
+    }
+
+    // Check if products collapse should be open
+    const isProductsCollapseActive = computed(() => {
+        return isAnyRouteActive([
+            'admin.products.index',
+            'admin.products.import',
+            'admin.products.create',
+            'admin.products.edit',
+            'admin.categories.index',
+            'admin.categories.create',
+            'admin.categories.edit',
+            'admin.brands.index',
+            'admin.brands.create',
+            'admin.brands.edit',
+            'admin.attributes.index',
+            'admin.attributes.create',
+            'admin.attributes.edit'
+        ])
+    })
+
+    // Check if reports collapse should be open
+    const isReportsCollapseActive = computed(() => {
+        return isAnyRouteActive([
+            'admin.reports.sales',
+            'admin.reports.products',
+            'admin.reports.customers',
+            'admin.reports.orders',
+            'admin.reports.revenue',
+            'admin.reports.inventory'
+        ])
+    })
+
+    // Check if settings collapse should be open
+    const isSettingsCollapseActive = computed(() => {
+        return isAnyRouteActive([
+            'admin.settings.index',
+            'admin.settings.appearance',
+            'admin.settings.email',
+            'admin.settings.payment',
+            'admin.settings.shipping',
+            'admin.settings.notification',
+            'admin.language.index',
+            'admin.language.create',
+            'admin.language.edit'
+        ])
+    })
+
+    // Refs for collapse elements
+    const productsCollapseElement = ref(null)
+    const reportsCollapseElement = ref(null)
+    const settingsCollapseElement = ref(null)
+
+    // Function to open collapse using Bootstrap API
+    const openCollapse = (collapseElement) => {
+        if (!collapseElement) return
+        
+        // Try using Bootstrap Collapse API if available
+        if (typeof window !== 'undefined' && window.bootstrap && window.bootstrap.Collapse) {
+            try {
+                // Check if collapse is already initialized
+                let bsCollapse = window.bootstrap.Collapse.getInstance(collapseElement)
+                if (!bsCollapse) {
+                    bsCollapse = new window.bootstrap.Collapse(collapseElement, {
+                        toggle: false
+                    })
+                }
+                bsCollapse.show()
+            } catch (e) {
+                // Fallback: just add show class
+                if (collapseElement.classList) {
+                    collapseElement.classList.add('show')
+                }
+            }
+        } else if (collapseElement.classList) {
+            // Fallback: just add show class if Bootstrap is not available
+            collapseElement.classList.add('show')
+        }
+    }
+
+    // Watch for route changes and open collapses accordingly
+    watch(() => route().current(), async () => {
+        await nextTick()
+        if (isProductsCollapseActive.value && productsCollapseElement.value) {
+            openCollapse(productsCollapseElement.value)
+        }
+        if (isReportsCollapseActive.value && reportsCollapseElement.value) {
+            openCollapse(reportsCollapseElement.value)
+        }
+        if (isSettingsCollapseActive.value && settingsCollapseElement.value) {
+            openCollapse(settingsCollapseElement.value)
+        }
+    }, { immediate: true })
+
+    // Open collapses on mount if needed
+    onMounted(async () => {
+        await nextTick()
+        if (isProductsCollapseActive.value && productsCollapseElement.value) {
+            openCollapse(productsCollapseElement.value)
+        }
+        if (isReportsCollapseActive.value && reportsCollapseElement.value) {
+            openCollapse(reportsCollapseElement.value)
+        }
+        if (isSettingsCollapseActive.value && settingsCollapseElement.value) {
+            openCollapse(settingsCollapseElement.value)
+        }
+    })
 
     function changeLang(lang) {
         router.post(route('change.language'), { lang })
@@ -56,57 +173,57 @@
                     <ul class="navbar-nav flex-column flex-grow-1" id="navbar-sidebar" style="overflow-y: auto; overflow-x: hidden; min-height: 0; max-height: 100%;">
 
                         <!-- Menu item 1 -->
-                        <li class="nav-item"><Link :href="route('admin.dashboard.index')" class="nav-link active"><i class="bi bi-house fa-fw me-2"></i>{{ t('dashboard') }}</Link></li>
+                        <li class="nav-item"><Link :href="route('admin.dashboard.index')" :class="['nav-link', { active: isRouteActive('admin.dashboard.index') }]"><i class="bi bi-house fa-fw me-2"></i>{{ t('dashboard') }}</Link></li>
 
                         <!-- Title -->
                         <li class="nav-item ms-2 my-2">E-Commerce</li>
 
                         <!-- menu item 2 -->
                         <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="collapse" href="#collapseproducts" role="button" aria-expanded="false" aria-controls="collapseproducts">
+                            <a class="nav-link" data-bs-toggle="collapse" href="#collapseproducts" role="button" :aria-expanded="isProductsCollapseActive" aria-controls="collapseproducts">
                                 <i class="bi bi-box fa-fw me-2"></i>{{ t('products') }}
                             </a>
                             <!-- Submenu -->
-                            <ul class="nav collapse flex-column" id="collapseproducts" data-bs-parent="#navbar-sidebar">
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.products.index')">{{ t('all_products') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.products.import')"><i class="bi bi-upload me-2"></i>{{ t('import_products') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.categories.index')">{{ t('categories') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.brands.index')">{{ t('brands') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.attributes.index')">{{ t('specifications') }}</Link></li>
+                            <ul ref="productsCollapseElement" class="nav collapse flex-column" :class="{ show: isProductsCollapseActive }" id="collapseproducts" data-bs-parent="#navbar-sidebar">
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.products.index') || isRouteActive('admin.products.create') || isRouteActive('admin.products.edit') }" :href="route('admin.products.index')">{{ t('all_products') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.products.import') }" :href="route('admin.products.import')"><i class="bi bi-upload me-2"></i>{{ t('import_products') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.categories.index') || isRouteActive('admin.categories.create') || isRouteActive('admin.categories.edit') }" :href="route('admin.categories.index')">{{ t('categories') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.brands.index') || isRouteActive('admin.brands.create') || isRouteActive('admin.brands.edit') }" :href="route('admin.brands.index')">{{ t('brands') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.attributes.index') || isRouteActive('admin.attributes.create') || isRouteActive('admin.attributes.edit') }" :href="route('admin.attributes.index')">{{ t('specifications') }}</Link></li>
                             </ul>
                         </li>
 
                         <!-- Menu item 3 -->
-                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.orders.index')"><i class="fas fa-shopping-cart fa-fw me-2"></i>{{ t('orders') }}</Link></li>
+                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.orders.index') || isRouteActive('admin.orders.show') || isRouteActive('admin.orders.create') || isRouteActive('admin.orders.edit') }" :href="route('admin.orders.index')"><i class="fas fa-shopping-cart fa-fw me-2"></i>{{ t('orders') }}</Link></li>
 
                         <!-- Menu item 4 -->
-                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.sliders.index')"><i class="fas fa-images fa-fw me-2"></i>{{ t('sliders') }}</Link></li>
+                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.sliders.index') || isRouteActive('admin.sliders.create') || isRouteActive('admin.sliders.edit') }" :href="route('admin.sliders.index')"><i class="fas fa-images fa-fw me-2"></i>{{ t('sliders') }}</Link></li>
 
                         <!-- Title -->
                         <li class="nav-item ms-2 my-2">{{ t('clients') }}</li>
 
                         <!-- Menu item 5 -->
-                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.clients.index')"><i class="fas fa-users fa-fw me-2"></i>{{ t('clients') }}</Link></li>
+                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.clients.index') || isRouteActive('admin.clients.show') || isRouteActive('admin.clients.create') || isRouteActive('admin.clients.edit') }" :href="route('admin.clients.index')"><i class="fas fa-users fa-fw me-2"></i>{{ t('clients') }}</Link></li>
 
                         <!-- Menu item 5.1 -->
-                        <li class="nav-item"> <Link class="nav-link" :href="route('admin.leads.index')"><i class="fas fa-user-plus fa-fw me-2"></i>طلبات التسجيل</Link></li>
+                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.leads.index') || isRouteActive('admin.leads.show') }" :href="route('admin.leads.index')"><i class="fas fa-user-plus fa-fw me-2"></i>طلبات التسجيل</Link></li>
 
                         <!-- Title -->
                         <li class="nav-item ms-2 my-2">{{ t('reports') }}</li>
 
                         <!-- Menu item 6 -->
                         <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="collapse" href="#collapsereports" role="button" aria-expanded="false" aria-controls="collapsereports">
+                            <a class="nav-link" data-bs-toggle="collapse" href="#collapsereports" role="button" :aria-expanded="isReportsCollapseActive" aria-controls="collapsereports">
                                 <i class="far fa-chart-bar fa-fw me-2"></i>{{ t('reports') }}
                             </a>
                             <!-- Submenu -->
-                            <ul class="nav collapse flex-column" id="collapsereports" data-bs-parent="#navbar-sidebar">
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.sales')">{{ t('reports') }} {{ t('sales') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.products')">{{ t('reports') }} {{ t('products') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.customers')">{{ t('reports') }} {{ t('clients') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.orders')">{{ t('reports') }} {{ t('orders') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.revenue')">{{ t('reports') }} {{ t('revenue') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.reports.inventory')">{{ t('reports') }} {{ t('inventory') }}</Link></li>
+                            <ul ref="reportsCollapseElement" class="nav collapse flex-column" :class="{ show: isReportsCollapseActive }" id="collapsereports" data-bs-parent="#navbar-sidebar">
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.reports.sales') }" :href="route('admin.reports.sales')">{{ t('reports') }} {{ t('sales') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.reports.products') }" :href="route('admin.reports.products')">{{ t('reports') }} {{ t('products') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.reports.customers') }" :href="route('admin.reports.customers')">{{ t('reports') }} {{ t('clients') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.reports.orders') }" :href="route('admin.reports.orders')">{{ t('reports') }} {{ t('orders') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.reports.revenue') }" :href="route('admin.reports.revenue')">{{ t('reports') }} {{ t('revenue') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.reports.inventory') }" :href="route('admin.reports.inventory')">{{ t('reports') }} {{ t('inventory') }}</Link></li>
                             </ul>
                         </li>
 
@@ -115,18 +232,18 @@
 
                         <!-- Menu item 7 -->
                         <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="collapse" href="#collapsesettings" role="button" aria-expanded="false" aria-controls="collapsesettings">
+                            <a class="nav-link" data-bs-toggle="collapse" href="#collapsesettings" role="button" :aria-expanded="isSettingsCollapseActive" aria-controls="collapsesettings">
                                 <i class="fas fa-cog fa-fw me-2"></i>{{ t('settings') }}
                             </a>
                             <!-- Submenu -->
-                            <ul class="nav collapse flex-column" id="collapsesettings" data-bs-parent="#navbar-sidebar">
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.index')">{{ t('general_settings') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.appearance')">{{ t('appearance_settings') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.email')">{{ t('email_settings') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.payment')">{{ t('payment_settings') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.shipping')">{{ t('shipping_settings') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.settings.notification')">{{ t('notification_settings') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :href="route('admin.language.index')">{{ t('languages') }}</Link></li>
+                            <ul ref="settingsCollapseElement" class="nav collapse flex-column" :class="{ show: isSettingsCollapseActive }" id="collapsesettings" data-bs-parent="#navbar-sidebar">
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.settings.index') }" :href="route('admin.settings.index')">{{ t('general_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.settings.appearance') }" :href="route('admin.settings.appearance')">{{ t('appearance_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.settings.email') }" :href="route('admin.settings.email')">{{ t('email_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.settings.payment') }" :href="route('admin.settings.payment')">{{ t('payment_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.settings.shipping') }" :href="route('admin.settings.shipping')">{{ t('shipping_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.settings.notification') }" :href="route('admin.settings.notification')">{{ t('notification_settings') }}</Link></li>
+                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.language.index') || isRouteActive('admin.language.create') || isRouteActive('admin.language.edit') }" :href="route('admin.language.index')">{{ t('languages') }}</Link></li>
                             </ul>
                         </li>
                     </ul>

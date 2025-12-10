@@ -78,6 +78,7 @@ class LeadController extends Controller
             'phone' => $lead->phone,
             'password' => Hash::make($request->password),
             'user_type' => 'client',
+            'location_url' => $lead->location_url,
             'email_verified_at' => now(),
         ]);
 

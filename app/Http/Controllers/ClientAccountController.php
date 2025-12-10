@@ -87,7 +87,7 @@ class ClientAccountController extends Controller
             'payment_status' => 'pending',
         ]);
 
-        // إضافة المنتجات للأوردر
+        // إضافة المنتجات للأوردر وخصم الكمية من المخزون
         foreach ($cartItems as $item) {
             $unit = $item->unit_price ?? $item->product->price;
             // قراءة حقل attributes من الكارت بطريقة صريحة لتجنب التضارب مع خاصية Laravel الداخلية
@@ -105,6 +105,21 @@ class ClientAccountController extends Controller
                 'attributes' => $cartAttributes,
                 'color' => $item->color,
             ]);
+
+            // خصم الكمية من المخزون إذا كان المنتج يدير المخزون
+            if ($item->product->manage_stock) {
+                $product = Product::find($item->product_id);
+                if ($product) {
+                    $product->stock_quantity = max(0, $product->stock_quantity - $item->quantity);
+                    
+                    // تحديث in_stock بناءً على الكمية المتبقية
+                    if ($product->stock_quantity <= 0) {
+                        $product->in_stock = false;
+                    }
+                    
+                    $product->save();
+                }
+            }
         }
 
         // حذف السلة بعد الإنشاء
@@ -120,22 +135,59 @@ class ClientAccountController extends Controller
         $id = $request->input('id');
         $quantity = (int) $request->input('quantity', 1);
         $cartItem = Cart::where('user_id', $userId)->where('id', $id)->first();
-        if ($cartItem && $quantity > 0) {
-            $cartItem->quantity = $quantity;
-
-            // تحديث الإجمالي بناءً على سعر الوحدة المخزن
-            if (!is_null($cartItem->unit_price)) {
-                $cartItem->total_price = $cartItem->unit_price * $cartItem->quantity;
-            } else {
-                // احتياطي: استخدام سعر المنتج إذا لم يكن unit_price موجوداً
-                $cartItem->loadMissing('product');
-                $unit = $cartItem->product?->price ?? 0;
-                $cartItem->total_price = $unit * $cartItem->quantity;
-            }
-
-            $cartItem->save();
+        
+        if (!$cartItem || $quantity <= 0) {
+            return redirect()->back()->withErrors([
+                'message' => 'عنصر السلة غير موجود'
+            ]);
         }
-        return redirect()->back();
+
+        // تحميل المنتج للتحقق من المخزون
+        $cartItem->loadMissing('product');
+        $product = $cartItem->product;
+
+        if (!$product) {
+            return redirect()->back()->withErrors([
+                'message' => 'المنتج غير موجود'
+            ]);
+        }
+
+        // التحقق من المخزون إذا كان المنتج يدير المخزون
+        if ($product->manage_stock) {
+            if ($product->stock_quantity <= 0) {
+                return redirect()->back()->withErrors([
+                    'message' => 'المنتج غير متوفر في المخزون'
+                ]);
+            }
+            
+            // تحديث in_stock ليتوافق مع stock_quantity
+            if ($product->stock_quantity > 0 && !$product->in_stock) {
+                $product->in_stock = true;
+                $product->save();
+            }
+            
+            // حساب الكمية الإجمالية المطلوبة (الكمية الجديدة - الكمية القديمة + الكمية القديمة في السلة)
+            // نحتاج للتحقق من أن الكمية الجديدة لا تتجاوز المخزون المتاح
+            if ($quantity > $product->stock_quantity) {
+                return redirect()->back()->withErrors([
+                    'message' => 'الكمية المطلوبة (' . $quantity . ') تتجاوز المخزون المتاح (' . $product->stock_quantity . ')'
+                ]);
+            }
+        }
+
+        $cartItem->quantity = $quantity;
+
+        // تحديث الإجمالي بناءً على سعر الوحدة المخزن
+        if (!is_null($cartItem->unit_price)) {
+            $cartItem->total_price = $cartItem->unit_price * $cartItem->quantity;
+        } else {
+            // احتياطي: استخدام سعر المنتج إذا لم يكن unit_price موجوداً
+            $unit = $product->price ?? 0;
+            $cartItem->total_price = $unit * $cartItem->quantity;
+        }
+
+        $cartItem->save();
+        return redirect()->back()->with('success', 'تم تحديث الكمية بنجاح');
     }
 
     /**
@@ -260,7 +312,7 @@ class ClientAccountController extends Controller
         $userId = Auth::id();
         $order = Order::where('id', $id)
             ->where('user_id', $userId)
-            ->with(['items.product:id,name,images,sku', 'user:id,name,email'])
+            ->with(['items.product:id,name,images,sku', 'user:id,name,email,location_url'])
             ->firstOrFail();
         
         return inertia('Client/OrderDetails', [
@@ -344,10 +396,33 @@ class ClientAccountController extends Controller
         }
 
         // التحقق من المخزون
-        if (!$product->stock_quantity || $product->stock_quantity <= 0) {
-            return redirect()->back()->withErrors([
-                'message' => 'المنتج غير متوفر في المخزون'
-            ]);
+        if ($product->manage_stock) {
+            // الاعتماد على stock_quantity كأساس
+            if ($product->stock_quantity <= 0) {
+                return redirect()->back()->withErrors([
+                    'message' => 'المنتج غير متوفر في المخزون'
+                ]);
+            }
+            
+            // تحديث in_stock ليتوافق مع stock_quantity
+            if ($product->stock_quantity > 0 && !$product->in_stock) {
+                $product->in_stock = true;
+                $product->save();
+            }
+            
+            // التحقق من أن الكمية المطلوبة متوفرة
+            $cartItem = \App\Models\Cart::where('user_id', $userId)
+                ->where('product_id', $productId)
+                ->first();
+            
+            $currentCartQuantity = $cartItem ? $cartItem->quantity : 0;
+            $totalRequestedQuantity = $currentCartQuantity + $quantity;
+            
+            if ($totalRequestedQuantity > $product->stock_quantity) {
+                return redirect()->back()->withErrors([
+                    'message' => 'الكمية المطلوبة غير متوفرة. الكمية المتاحة: ' . $product->stock_quantity
+                ]);
+            }
         }
 
         // جلب الخصائص المطلوبة للمنتج من pivot table

@@ -119,12 +119,66 @@ input[type=number]::-webkit-outer-spin-button {
     margin: 0;
 }
 
+/* تحسين تصميم شريط التقدم */
+.checkout-progress-bar {
+    margin: 2rem 0 3rem;
+    padding: 0;
+    list-style: none;
+}
+
+.checkout-progress-bar li {
+    display: inline-block;
+    position: relative;
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 500;
+    letter-spacing: normal;
+}
+
+.checkout-progress-bar li.active a {
+    color: #08C !important;
+    font-weight: 600;
+}
+
+.checkout-progress-bar li.disabled a,
+.checkout-progress-bar li.active + li a {
+    color: #919292 !important;
+    cursor: default;
+    pointer-events: none;
+}
+
+.checkout-progress-bar li:not(:first-child) {
+    margin-right: 1.5rem;
+    padding-right: 2.5rem;
+}
+
+.checkout-progress-bar li:not(:first-child):before {
+    content: '<';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+    font-size: 1.4rem;
+    font-weight: 400;
+    font-family: Arial, sans-serif;
+}
+
+.checkout-progress-bar li a {
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.checkout-progress-bar li.active a:hover {
+    color: #08C !important;
+}
+
 </style>
 <template>
     <Head title="لوحة التحكم" />
     <FrontLayout>
         <div class="container">
-            <ul class="checkout-progress-bar d-flex justify-content-center flex-wrap">
+            <ul class="checkout-progress-bar d-flex justify-content-center flex-wrap" dir="rtl">
                 <li class="active">
                     <Link :href="route('client.cart')">سلة التسوق</Link>
                 </li>
@@ -283,6 +337,24 @@ const removeFromCart = (id) => {
 const updateQty = (item, event) => {
     let newQty = parseInt(event.target.value);
     if (isNaN(newQty) || newQty < 1) newQty = 1;
+    
+    // التحقق من المخزون المتاح
+    if (item.product && item.product.manage_stock) {
+        if (newQty > item.product.stock_quantity) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'الكمية المطلوبة (' + newQty + ') تتجاوز المخزون المتاح (' + item.product.stock_quantity + ')',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            // إعادة تعيين القيمة إلى الكمية الحالية
+            event.target.value = item.quantity;
+            return;
+        }
+    }
+    
     router.post(route('cart.update'), { id: item.id, quantity: newQty }, {
         onSuccess: () => {
             item.quantity = newQty;
@@ -294,12 +366,44 @@ const updateQty = (item, event) => {
                 showConfirmButton: false,
                 timer: 2000
             });
+        },
+        onError: (errors) => {
+            // إعادة تعيين القيمة في حالة الخطأ
+            event.target.value = item.quantity;
+            let errorMessage = 'حدث خطأ أثناء تحديث الكمية';
+            if (errors.message) {
+                errorMessage = errors.message;
+            }
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: errorMessage,
+                showConfirmButton: false,
+                timer: 3000
+            });
         }
     });
 };
 
 const addQty = (item) => {
     const newQty = item.quantity + 1;
+    
+    // التحقق من المخزون المتاح
+    if (item.product && item.product.manage_stock) {
+        if (newQty > item.product.stock_quantity) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'الكمية المطلوبة (' + newQty + ') تتجاوز المخزون المتاح (' + item.product.stock_quantity + ')',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        }
+    }
+    
     router.post(route('cart.update'), { id: item.id, quantity: newQty }, {
         onSuccess: () => {
             item.quantity = newQty;
@@ -310,6 +414,20 @@ const addQty = (item) => {
                 title: 'تم تحديث الكمية',
                 showConfirmButton: false,
                 timer: 2000
+            });
+        },
+        onError: (errors) => {
+            let errorMessage = 'حدث خطأ أثناء تحديث الكمية';
+            if (errors.message) {
+                errorMessage = errors.message;
+            }
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: errorMessage,
+                showConfirmButton: false,
+                timer: 3000
             });
         }
     });

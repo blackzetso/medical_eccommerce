@@ -15,6 +15,17 @@
                         <span>لوحة التحكم</span>
                     </Link>
                 </li>
+                <li v-if="user && user.user_type === 'admin'" class="nav-item">
+                    <a 
+                        :href="route('admin.dashboard.index')" 
+                        class="nav-link"
+                        style="background: linear-gradient(90deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%); color: #ff9800; border-right-color: #ff9800;"
+                        @click.prevent="goToAdminDashboard"
+                    >
+                        <i class="icon-settings"></i>
+                        <span>لوحة التحكم (أدمن)</span>
+                    </a>
+                </li>
                 <li class="nav-item">
                     <Link 
                         :href="route('client.myorders')" 
@@ -65,6 +76,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 
 const page = usePage();
+const user = page.props.auth?.user;
 
 const isActive = (path) => {
     const currentUrl = page.url;
@@ -78,6 +90,12 @@ const isActive = (path) => {
 
 const logout = () => {
     router.post(route('logout'));
+};
+
+const goToAdminDashboard = () => {
+    // استخدام window.location.href لإجبار إعادة تحميل الصفحة بالكامل
+    // هذا يضمن تحميل ملفات CSS و JS الخاصة بلوحة الأدمن
+    window.location.href = route('admin.dashboard.index');
 };
 </script>
 

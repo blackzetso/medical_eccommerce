@@ -232,6 +232,37 @@
                             </div>
                         </div>
 
+                        <!-- خريطة الموقع -->
+                        <div class="card mt-4" v-if="order.user?.location_url">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">موقع العميل</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div v-if="getEmbedUrl(order.user.location_url)">
+                                    <iframe
+                                        :src="getEmbedUrl(order.user.location_url)"
+                                        width="100%"
+                                        height="450"
+                                        style="border:0;"
+                                        allowfullscreen=""
+                                        loading="lazy"
+                                        referrerpolicy="no-referrer-when-downgrade"
+                                    ></iframe>
+                                </div>
+                                <div v-else class="p-4 text-center">
+                                    <div class="alert alert-warning mb-0">
+                                        <strong>تنبيه:</strong> الرابط المدخل هو رابط مشاركة وليس رابط embed.
+                                        <br>
+                                        <small>يرجى استخدام رابط embed من Google Maps. يمكنك الحصول عليه من: مشاركة → تضمين خريطة</small>
+                                        <br>
+                                        <a :href="order.user.location_url" target="_blank" class="btn btn-sm btn-primary mt-2">
+                                            فتح الموقع في Google Maps
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ملاحظات الطلب -->
                         <div class="card mt-4" v-if="order.notes">
                             <div class="card-header">
@@ -379,6 +410,61 @@ function parseAttributes(attributes) {
     }
     
     return {};
+}
+
+// تحويل رابط مشاركة Google Maps إلى رابط embed
+function getEmbedUrl(url) {
+    if (!url) return '';
+    
+    // إذا كان الرابط بالفعل embed URL
+    if (url.includes('google.com/maps/embed')) {
+        return url;
+    }
+    
+    // إذا كان رابط مشاركة (maps.app.goo.gl أو goo.gl)
+    if (url.includes('maps.app.goo.gl') || url.includes('goo.gl/maps')) {
+        // محاولة استخراج place_id أو coordinates من الرابط
+        // للأسف، Google Maps لا تسمح بتحويل روابط goo.gl مباشرة إلى embed
+        // الحل: نحتاج لاستخدام Google Maps Embed API مع place_id
+        // لكن يمكننا محاولة استخراج المعلومات من الرابط
+        
+        // إذا كان الرابط يحتوي على place_id
+        const placeIdMatch = url.match(/place_id=([^&]+)/);
+        if (placeIdMatch) {
+            return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3000!2d0!3d0!4m2!3m1!1s${placeIdMatch[1]}!5e0!3m2!1sen!2sus!4v1234567890!5m2!1sen!2sus`;
+        }
+        
+        // إذا كان الرابط يحتوي على coordinates
+        const coordMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+        if (coordMatch) {
+            const lat = coordMatch[1];
+            const lng = coordMatch[2];
+            return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3000!2d${lng}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z${lat}%2C${lng}!5e0!3m2!1sen!2sus!4v1234567890!5m2!1sen!2sus`;
+        }
+        
+        // إذا لم نتمكن من التحويل، نعيد الرابط الأصلي مع رسالة خطأ
+        return null;
+    }
+    
+    // إذا كان رابط Google Maps عادي
+    if (url.includes('google.com/maps')) {
+        // محاولة استخراج place_id أو coordinates
+        const placeIdMatch = url.match(/place\/([^\/]+)/);
+        if (placeIdMatch) {
+            const placeId = placeIdMatch[1];
+            return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3000!2d0!3d0!4m2!3m1!1s${placeId}!5e0!3m2!1sen!2sus!4v1234567890!5m2!1sen!2sus`;
+        }
+        
+        const coordMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+        if (coordMatch) {
+            const lat = coordMatch[1];
+            const lng = coordMatch[2];
+            return `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3000!2d${lng}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z${lat}%2C${lng}!5e0!3m2!1sen!2sus!4v1234567890!5m2!1sen!2sus`;
+        }
+    }
+    
+    // إذا كان الرابط embed بالفعل أو أي رابط آخر
+    return url;
 }
 </script>
 

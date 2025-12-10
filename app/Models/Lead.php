@@ -13,6 +13,7 @@ class Lead extends Model
         'phone',
         'pharmacy_name',
         'address',
+        'location_url',
         'notes',
         'status',
         'converted_by',

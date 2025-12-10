@@ -283,7 +283,19 @@ const isAuthenticated = computed(() => {
 
 // زيادة الكمية
 const increaseQuantity = () => {
-    if (props.product.stock_quantity && quantity.value < props.product.stock_quantity) {
+    // التحقق من المخزون المتاح
+    if (props.product.manage_stock) {
+        // السماح بزيادة الكمية حتى المخزون المتاح
+        if (props.product.stock_quantity && quantity.value < props.product.stock_quantity) {
+            quantity.value++;
+        } else {
+            // إظهار رسالة إذا وصلت للحد الأقصى
+            if (window.$toast) {
+                window.$toast.warning('تم الوصول للحد الأقصى من المخزون المتاح (' + props.product.stock_quantity + ')');
+            }
+        }
+    } else {
+        // إذا لم يكن المنتج يدير المخزون، يمكن زيادة الكمية بدون قيود
         quantity.value++;
     }
 };

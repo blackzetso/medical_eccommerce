@@ -36,9 +36,22 @@
                                         <div v-if="product.sale_price" class="product-label label-sale">تخفيض</div>
                                     </div>
                                     <div class="btn-icon-group">
-                                        <a href="#" @click.prevent="addToCart(product)" class="btn-icon btn-add-cart product-type-simple">
+                                        <a 
+                                            v-if="product.manage_stock && product.stock_quantity > 0 || !product.manage_stock"
+                                            href="#" 
+                                            @click.prevent="addToCart(product)" 
+                                            class="btn-icon btn-add-cart product-type-simple"
+                                        >
                                             <i class="icon-shopping-cart"></i>
                                         </a>
+                                        <span 
+                                            v-else 
+                                            class="btn-icon btn-add-cart product-type-simple disabled" 
+                                            style="opacity: 0.5; cursor: not-allowed;"
+                                            title="المنتج غير متوفر"
+                                        >
+                                            <i class="icon-shopping-cart"></i>
+                                        </span>
                                     </div>
                                     <!-- <Link :href="route('web.product', product.id)" class="btn-quickview" title="عرض سريع" @click="hideLoadingOverlay">عرض سريع</Link> -->
                                 </figure>
@@ -219,6 +232,15 @@ const addToCart = (product) => {
 };
 
 const getProductImage = (product) => {
+    // استخدام main_image إذا كان موجوداً
+    if (product.main_image) {
+        let img = product.main_image;
+        if (!img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
+        }
+        return img;
+    }
+    // وإلا استخدم أول صورة من المصفوفة
     if (product.images && product.images.length > 0) {
         let img = product.images[0];
         // إذا كان المسار لا يبدأ بـ http أو /

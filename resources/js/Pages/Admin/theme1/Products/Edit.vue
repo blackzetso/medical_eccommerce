@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import AppLayout from '@/Pages/Admin/theme1/Layout/App.vue'
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, useForm, router } from '@inertiajs/vue3'
 import { Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
@@ -197,26 +197,101 @@ const saveColorsToForm = () => {
 }
 
 function updateForm() {
+  // تحديث form.existing_images من existingImages.value قبل الإرسال
+  form.existing_images = [...existingImages.value];
+  
+  console.log('=== Frontend: Preparing to update product ===');
+  console.log('existingImages.value:', existingImages.value);
+  console.log('form.existing_images:', form.existing_images);
+  console.log('form.images (new files):', form.images);
+  
   const formData = new FormData();
 
-  // إضافة الحقول النصية إلى FormData
-  Object.keys(form).forEach(key => {
-    if (key !== 'images') {
-      formData.append(key, form[key]);
+  // قائمة الحقول المسموح بها فقط (تجنب إرسال methods و properties من useForm)
+  const allowedFields = [
+    'name', 'name_en', 'slug', 'description', 'short_description',
+    'price', 'sale_price', 'discount_type', 'discount_value',
+    'stock_quantity', 'manage_stock', 'sku', 'product_code',
+    'weight', 'dimensions', 'category_id', 'brand_id',
+    'is_featured', 'status', 'meta_title', 'meta_description',
+    'existing_main_image'
+  ];
+
+  // إضافة الحقول المسموح بها فقط
+  allowedFields.forEach(key => {
+    const value = form[key];
+    if (value !== null && value !== undefined) {
+      // تحويل boolean values إلى strings '1' أو '0' أو 'true'/'false'
+      if (typeof value === 'boolean') {
+        formData.append(key, value ? '1' : '0');
+      } else {
+        formData.append(key, value);
+      }
     }
   });
 
-  // إضافة الصور إلى FormData
-  form.images.forEach((image, index) => {
-    formData.append(`images[${index}]`, image);
-  });
+  // إضافة attributes كـ JSON string
+  if (form.attributes && Array.isArray(form.attributes)) {
+    formData.append('attributes', JSON.stringify(form.attributes));
+  } else {
+    formData.append('attributes', JSON.stringify([]));
+  }
 
-  form.put(route('admin.products.update', props.product.id), {
-    data: formData,
+  // إضافة colors كـ JSON string
+  if (form.colors && Array.isArray(form.colors)) {
+    formData.append('colors', JSON.stringify(form.colors));
+  } else {
+    formData.append('colors', JSON.stringify([]));
+  }
+
+  // إضافة existing_images كـ array في FormData
+  // مهم: يجب إرسال existing_images حتى لو كانت فارغة حتى يعرف Backend أن المستخدم حذف جميع الصور
+  if (form.existing_images && Array.isArray(form.existing_images)) {
+    if (form.existing_images.length > 0) {
+      console.log('Adding existing_images to FormData, count:', form.existing_images.length);
+      form.existing_images.forEach((image, index) => {
+        formData.append(`existing_images[${index}]`, image);
+        console.log(`existing_images[${index}]:`, image);
+      });
+    } else {
+      // إرسال array فارغ بشكل صحيح
+      console.log('Sending empty existing_images array (user deleted all existing images)');
+      // إرسال array فارغ كـ JSON string أو كـ empty array
+      formData.append('existing_images', JSON.stringify([]));
+    }
+  } else {
+    // إذا لم تكن array، أرسل array فارغ
+    console.log('form.existing_images is not an array, sending empty array');
+    formData.append('existing_images', JSON.stringify([]));
+  }
+
+  // إضافة الصور الجديدة إلى FormData
+  if (form.images && Array.isArray(form.images) && form.images.length > 0) {
+    console.log('Adding new images to FormData, count:', form.images.length);
+    form.images.forEach((image, index) => {
+      formData.append(`images[${index}]`, image);
+      console.log(`images[${index}]:`, image.name || image);
+    });
+  }
+
+  // إضافة _method: 'PUT' للـ FormData
+  formData.append('_method', 'PUT');
+
+  console.log('FormData entries:');
+  for (let pair of formData.entries()) {
+    console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+  }
+
+  // استخدام router.post مع _method: 'PUT' لإرسال FormData بشكل صحيح
+  router.post(route('admin.products.update', props.product.id), formData, {
+    forceFormData: true,
+    preserveState: false,
+    preserveScroll: false,
     onSuccess: () => {
       Swal.fire('تم التحديث!', 'تم تحديث المنتج بنجاح.', 'success');
     },
-    onError: () => {
+    onError: (errors) => {
+      console.error('Update errors:', errors);
       Swal.fire('خطأ!', 'حدثت مشكلة أثناء التحديث.', 'error');
     }
   });

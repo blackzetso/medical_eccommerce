@@ -41,6 +41,7 @@ class ClientAuthController extends Controller
             'phone' => 'required|string|max:20',
             'pharmacy_name' => 'nullable|string|max:255',
             'address' => 'nullable|string',
+            'location_url' => 'nullable|url|max:2048',
             'notes' => 'nullable|string',
         ]);
 
@@ -51,6 +52,7 @@ class ClientAuthController extends Controller
             'phone' => $request->phone,
             'pharmacy_name' => $request->pharmacy_name,
             'address' => $request->address,
+            'location_url' => $request->location_url,
             'notes' => $request->notes,
             'status' => 'pending',
         ]);

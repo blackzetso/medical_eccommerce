@@ -10,11 +10,47 @@ use App\Models\Attribute;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class ProductController extends Controller
 {
+    /**
+     * Convert full URL to relative path
+     * Converts http://domain.com/uploads/products/image.jpg to /uploads/products/image.jpg
+     */
+    private function convertUrlToRelativePath($url)
+    {
+        if (empty($url)) {
+            return null;
+        }
+
+        // If it's already a relative path, return as is
+        if (strpos($url, '/uploads/') === 0) {
+            return $url;
+        }
+
+        // Extract path from full URL
+        $parsedUrl = parse_url($url);
+        if (isset($parsedUrl['path'])) {
+            $path = $parsedUrl['path'];
+            // Ensure it starts with /uploads/products/
+            if (strpos($path, '/uploads/products/') === 0) {
+                return $path;
+            }
+        }
+
+        // If we can't parse it, try to extract /uploads/products/ from the string
+        if (preg_match('#(/uploads/products/[^?#]+)#', $url, $matches)) {
+            return $matches[1];
+        }
+
+        // If all else fails, return null
+        Log::warning('Could not convert URL to relative path', ['url' => $url]);
+        return null;
+    }
+
     /**
      * Build hierarchical categories list for dropdowns
      */
@@ -79,6 +115,11 @@ class ProductController extends Controller
 
         // تعديل الصور لإرسال رابط كامل
         $products->getCollection()->transform(function ($product) {
+            // تعديل main_image إذا كان موجوداً
+            if ($product->main_image) {
+                $product->main_image = asset('/' . ltrim($product->main_image, '/'));
+            }
+            // تعديل صور المصفوفة
             if (is_array($product->images)) {
                 $product->images = array_map(fn($img) => asset('/' . ltrim($img, '/')), $product->images);
             }
@@ -254,6 +295,63 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
 
+        // تحويل القيم قبل validation
+        $requestData = $request->all();
+        
+        // تحويل boolean strings إلى booleans
+        $booleanFields = ['manage_stock', 'is_featured', 'status'];
+        foreach ($booleanFields as $field) {
+            if (isset($requestData[$field])) {
+                $value = $requestData[$field];
+                if (is_string($value)) {
+                    $requestData[$field] = in_array(strtolower($value), ['1', 'true', 'on', 'yes'], true);
+                }
+            }
+        }
+        
+        // تحويل JSON strings إلى arrays
+        if (isset($requestData['attributes']) && is_string($requestData['attributes'])) {
+            $decoded = json_decode($requestData['attributes'], true);
+            if (is_array($decoded)) {
+                $requestData['attributes'] = $decoded;
+            } else {
+                $requestData['attributes'] = [];
+            }
+        }
+        
+        if (isset($requestData['colors']) && is_string($requestData['colors'])) {
+            $decoded = json_decode($requestData['colors'], true);
+            if (is_array($decoded)) {
+                $requestData['colors'] = $decoded;
+            } else {
+                $requestData['colors'] = [];
+            }
+        }
+        
+        // استبدال request data
+        $request->merge($requestData);
+        
+        // Log initial request data
+        Log::info('=== Product Update Request Started ===', [
+            'product_id' => $id,
+            'has_main_image_file' => $request->hasFile('main_image'),
+            'has_images_files' => $request->hasFile('images'),
+            'existing_images_input' => $request->input('existing_images'),
+            'existing_images_type' => gettype($request->input('existing_images')),
+            'all_request_input_keys' => array_keys($request->all()),
+            'manage_stock_value' => $request->input('manage_stock'),
+            'manage_stock_type' => gettype($request->input('manage_stock')),
+            'is_featured_value' => $request->input('is_featured'),
+            'is_featured_type' => gettype($request->input('is_featured')),
+            'status_value' => $request->input('status'),
+            'status_type' => gettype($request->input('status')),
+            'attributes_value' => $request->input('attributes'),
+            'attributes_type' => gettype($request->input('attributes')),
+            'colors_value' => $request->input('colors'),
+            'colors_type' => gettype($request->input('colors')),
+            'current_product_images' => $product->images,
+        ]);
+
         $validated = $request->validate([
             'name' => $request->input('name') ? 'required|string|max:255' : 'nullable',
             'name_en' => 'nullable|string|max:255',
@@ -304,22 +402,113 @@ class ProductController extends Controller
             $validated['main_image'] = $validated['existing_main_image'] ?? $product->main_image;
         }
 
-        // معالجة الصور الإضافية الجديدة ورفعها إلى public/uploads/products
-        $existingImages = $validated['existing_images'] ?? [];
+        // معالجة الصور الإضافية - الحصول على الصور الحالية المتبقية
+        $existingImages = [];
+        
+        // التحقق من وجود existing_images (حتى لو كانت فارغة)
+        // يمكن أن تكون array أو JSON string
+        $hasExistingImages = $request->has('existing_images') || 
+                           $request->input('existing_images') !== null;
+        
+        Log::info('Processing existing images', [
+            'has_existing_images' => $hasExistingImages,
+            'request_has' => $request->has('existing_images'),
+            'existing_images_input_raw' => $request->input('existing_images'),
+            'existing_images_input_type' => gettype($request->input('existing_images')),
+        ]);
+        
+        // إذا تم إرسال existing_images (حتى لو كانت فارغة)، استخدمها
+        // هذا مهم: إذا أرسل المستخدم array فارغ، يعني أنه حذف جميع الصور القديمة
+        if ($hasExistingImages) {
+            $existingImagesInput = $request->input('existing_images');
+            
+            Log::info('Existing images input received', [
+                'type' => gettype($existingImagesInput),
+                'value' => $existingImagesInput,
+            ]);
+            
+            if (is_array($existingImagesInput)) {
+                $existingImages = $existingImagesInput;
+            } elseif (is_string($existingImagesInput)) {
+                // محاولة تحويل JSON string إلى array
+                $decoded = json_decode($existingImagesInput, true);
+                if (is_array($decoded)) {
+                    $existingImages = $decoded;
+                } else {
+                    // إذا فشل التحويل وكان string فارغ، استخدم array فارغ
+                    $existingImages = [];
+                }
+            }
+            
+            // تحويل الروابط الكاملة إلى مسارات نسبية
+            $convertedImages = [];
+            foreach ($existingImages as $imageUrl) {
+                $relativePath = $this->convertUrlToRelativePath($imageUrl);
+                if ($relativePath !== null) {
+                    $convertedImages[] = $relativePath;
+                } else {
+                    Log::warning('Failed to convert image URL to relative path', [
+                        'url' => $imageUrl,
+                    ]);
+                }
+            }
+            $existingImages = $convertedImages;
+            
+            Log::info('Existing images after conversion', [
+                'count' => count($existingImages),
+                'images' => $existingImages,
+                'note' => count($existingImages) === 0 ? 'Empty array - user deleted all existing images' : 'User kept some existing images',
+            ]);
+        } elseif (!empty($product->images) && is_array($product->images)) {
+            // إذا لم يتم إرسال existing_images على الإطلاق، استخدم الصور الحالية
+            // (هذا يعني أن المستخدم لم يغير الصور)
+            // تحويل الروابط الكاملة إلى مسارات نسبية (في حالة كانت روابط كاملة)
+            $convertedImages = [];
+            foreach ($product->images as $imageUrl) {
+                $relativePath = $this->convertUrlToRelativePath($imageUrl);
+                if ($relativePath !== null) {
+                    $convertedImages[] = $relativePath;
+                } else {
+                    // إذا كان المسار نسبي بالفعل، استخدمه كما هو
+                    if (strpos($imageUrl, '/uploads/') === 0) {
+                        $convertedImages[] = $imageUrl;
+                    } else {
+                        Log::warning('Could not process image path', ['url' => $imageUrl]);
+                    }
+                }
+            }
+            $existingImages = $convertedImages;
+            Log::info('Using current product images (no existing_images sent - user did not change images)', [
+                'original_count' => count($product->images),
+                'converted_count' => count($existingImages),
+                'original_images' => $product->images,
+                'converted_images' => $existingImages,
+            ]);
+        } else {
+            Log::info('No existing images to process');
+        }
+        
+        // إضافة الصور الجديدة المرفوعة
         if ($request->hasFile('images')) {
+            $newImagesCount = 0;
             foreach ($request->file('images') as $image) {
                 $filename = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
                 $image->move(public_path('uploads/products'), $filename);
                 $existingImages[] = '/uploads/products/' . $filename;
+                $newImagesCount++;
             }
+            Log::info('New images uploaded', [
+                'count' => $newImagesCount,
+            ]);
         }
 
-        // إذا لم يتم رفع صور جديدة، احتفظ بالصور الحالية إذا كانت موجودة
-        if (!$request->hasFile('images') && !empty($product->images)) {
-            $validated['images'] = $product->images;
-        } else {
-            $validated['images'] = $existingImages;
-        }
+        // حفظ الصور النهائية (الحالية المتبقية + الجديدة)
+        $validated['images'] = $existingImages;
+        
+        Log::info('Final images array before save', [
+            'count' => count($validated['images']),
+            'images' => $validated['images'],
+        ]);
 
         // حساب sale_price بناءً على نوع الخصم
         if (isset($validated['discount_type']) && $validated['discount_type'] !== 'none' && isset($validated['discount_value']) && $validated['discount_value'] > 0) {
@@ -336,7 +525,24 @@ class ProductController extends Controller
             $validated['sale_price'] = null;
         }
 
+        // Log before saving
+        Log::info('About to update product', [
+            'product_id' => $id,
+            'images_to_save' => $validated['images'] ?? null,
+            'images_count' => is_array($validated['images'] ?? null) ? count($validated['images']) : 0,
+            'main_image' => $validated['main_image'] ?? null,
+        ]);
+
         $product->update($validated);
+        
+        // Log after saving
+        Log::info('Product updated successfully', [
+            'product_id' => $id,
+            'saved_images' => $product->fresh()->images,
+            'saved_images_count' => is_array($product->fresh()->images) ? count($product->fresh()->images) : 0,
+        ]);
+        
+        Log::info('=== Product Update Request Completed ===');
 
         // تحديث الخصائص
         $product->attributes()->detach(); // حذف الخصائص القديمة

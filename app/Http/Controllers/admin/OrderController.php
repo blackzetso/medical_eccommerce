@@ -55,7 +55,7 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         $order->load([
-            'user',
+            'user:id,name,email,location_url',
             'items.product:id,name,images,sku',
         ]);
 
@@ -171,10 +171,56 @@ class OrderController extends Controller
             'status' => 'required|in:pending,processing,shipped,delivered,cancelled',
         ]);
 
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
+
+        // إذا تم إلغاء الطلب، إرجاع الكمية إلى المخزون
+        if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
+            // تحميل عناصر الطلب مع المنتجات
+            $order->load('items.product');
+            
+            foreach ($order->items as $item) {
+                $product = $item->product;
+                
+                if ($product && $product->manage_stock) {
+                    // إرجاع الكمية إلى المخزون
+                    $product->stock_quantity = $product->stock_quantity + $item->quantity;
+                    
+                    // تحديث in_stock إذا كانت الكمية أكبر من 0
+                    if ($product->stock_quantity > 0) {
+                        $product->in_stock = true;
+                    }
+                    
+                    $product->save();
+                }
+            }
+        }
+        // إذا تم تغيير حالة الطلب من "cancelled" إلى حالة أخرى، خصم الكمية مرة أخرى
+        elseif ($oldStatus === 'cancelled' && $newStatus !== 'cancelled') {
+            // تحميل عناصر الطلب مع المنتجات
+            $order->load('items.product');
+            
+            foreach ($order->items as $item) {
+                $product = $item->product;
+                
+                if ($product && $product->manage_stock) {
+                    // خصم الكمية من المخزون
+                    $product->stock_quantity = max(0, $product->stock_quantity - $item->quantity);
+                    
+                    // تحديث in_stock بناءً على الكمية المتبقية
+                    if ($product->stock_quantity <= 0) {
+                        $product->in_stock = false;
+                    }
+                    
+                    $product->save();
+                }
+            }
+        }
+
         $order->update([
-            'status' => $request->status,
-            'shipped_at' => $request->status === 'shipped' ? now() : $order->shipped_at,
-            'delivered_at' => $request->status === 'delivered' ? now() : $order->delivered_at,
+            'status' => $newStatus,
+            'shipped_at' => $newStatus === 'shipped' ? now() : $order->shipped_at,
+            'delivered_at' => $newStatus === 'delivered' ? now() : $order->delivered_at,
         ]);
 
         return back()->with('success', 'تم تحديث حالة الطلب بنجاح');

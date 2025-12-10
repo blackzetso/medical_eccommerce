@@ -90,8 +90,21 @@ watch(search, (value) => {
 
 // ✅ عرض الصورة الافتراضية
 function getMainImage(product) {
+  // استخدام main_image إذا كان موجوداً
+  if (product.main_image) {
+    let img = product.main_image;
+    if (!img.startsWith('http') && !img.startsWith('/')) {
+      img = '/' + img;
+    }
+    return img;
+  }
+  // وإلا استخدم أول صورة من المصفوفة
   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-    return product.images[0]
+    let img = product.images[0];
+    if (!img.startsWith('http') && !img.startsWith('/')) {
+      img = '/' + img;
+    }
+    return img;
   }
   return '/admin/theme1/images/placeholder-image.png'
 }
@@ -152,7 +165,6 @@ function renderStars(rating) {
                 <th>{{ t('stock') }}</th>
                 <th>{{ t('categories') }}</th>
                 <th>{{ t('brands') }}</th>
-                <th>{{ t('reviews') }}</th>
                 <th>{{ t('is_featured') }}</th>
                 <th>{{ t('status') }}</th>
                 <th>{{ t('actions') }}</th>
@@ -204,12 +216,25 @@ function renderStars(rating) {
 
                 <!-- المخزون -->
                 <td>
-                  <span
-                    class="badge"
-                    :class="product.stock_quantity > 0 ? 'bg-success' : 'bg-danger'"
-                  >
-                    {{ product.stock_quantity }}
-                  </span>
+                  <div v-if="product.manage_stock">
+                    <span
+                      class="badge"
+                      :class="product.stock_quantity > 0 ? 'bg-success' : 'bg-danger'"
+                    >
+                      {{ product.stock_quantity || 0 }}
+                    </span>
+                    <small class="d-block text-muted mt-1" v-if="product.stock_quantity <= 0">
+                      غير متوفر
+                    </small>
+                    <small class="d-block text-success mt-1" v-else>
+                      متوفر
+                    </small>
+                  </div>
+                  <div v-else>
+                    <span class="badge bg-secondary">
+                      غير محدود
+                    </span>
+                  </div>
                 </td>
 
                 <!-- القسم -->
@@ -222,14 +247,6 @@ function renderStars(rating) {
                 <td>
                   <span v-if="product.brand">{{ product.brand.name }}</span>
                   <span v-else class="text-muted">{{ t('no_data_available') }}</span>
-                </td>
-
-                <!-- التقييم -->
-                <td>
-                  <div class="text-warning">
-                    {{ renderStars(product.rating || 0) }}
-                  </div>
-                  <small class="text-muted">({{ product.reviews_count || 0 }})</small>
                 </td>
 
                 <!-- مميز -->
@@ -273,7 +290,7 @@ function renderStars(rating) {
 
               <!-- لما مفيش بيانات -->
               <tr v-if="!props.products.data.length" class="text-center">
-                <td colspan="11" class="text-center py-4">
+                <td colspan="10" class="text-center py-4">
                   <i class="bi bi-inbox text-muted fs-4 d-block mb-2"></i>
                   <span class="text-muted">{{ t('no_data_available') }}</span>
                 </td>

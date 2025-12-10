@@ -283,6 +283,8 @@ const handleSearch = () => {
         max-width: 100%;
         margin: 10px 0 0 0;
         padding: 0;
+        display: flex !important;
+        visibility: visible !important;
     }
     
     .header-left {
@@ -291,6 +293,16 @@ const handleSearch = () => {
     
     .header-right {
         margin-left: auto;
+    }
+    
+    .header-search-form {
+        display: flex !important;
+        visibility: visible !important;
+    }
+    
+    .header-search {
+        display: flex !important;
+        visibility: visible !important;
     }
 }
 
@@ -313,6 +325,21 @@ const handleSearch = () => {
     
     .header-center {
         margin-top: 8px;
+        display: flex !important;
+        visibility: visible !important;
+        width: 100% !important;
+    }
+    
+    .header-search-form {
+        display: flex !important;
+        visibility: visible !important;
+        width: 100% !important;
+    }
+    
+    .header-search {
+        display: flex !important;
+        visibility: visible !important;
+        width: 100% !important;
     }
 }
 </style>
