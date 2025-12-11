@@ -51,41 +51,113 @@ const getProductImage = (product) => {
     return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
 };
 
+// دالة لتنسيق مسار الصورة
+const formatImagePath = (img) => {
+    if (!img) return null;
+    let formattedImg = String(img).trim();
+    if (!formattedImg.startsWith('http') && !formattedImg.startsWith('/')) {
+        formattedImg = '/' + formattedImg;
+    }
+    // إزالة المسار المكرر إذا كان موجوداً
+    formattedImg = formattedImg.replace(/^\/\//, '/');
+    return formattedImg;
+};
+
+// دالة لمقارنة مسارين للصور (للتأكد من عدم التكرار)
+const areImagesEqual = (img1, img2) => {
+    if (!img1 || !img2) return false;
+    const path1 = formatImagePath(img1).replace(/^\/+/, '/');
+    const path2 = formatImagePath(img2).replace(/^\/+/, '/');
+    return path1 === path2;
+};
+
 // دالة للحصول على جميع صور المنتج (main_image + images)
 const getAllProductImages = () => {
     const images = [];
     
-    // إضافة الصورة الرئيسية أولاً
-    if (props.product.main_image) {
-        let img = props.product.main_image;
-        if (!img.startsWith('http') && !img.startsWith('/')) {
-            img = '/' + img;
-        }
-        images.push(img);
+    // تنسيق الصورة الرئيسية
+    const mainImage = props.product && props.product.main_image ? formatImagePath(props.product.main_image) : null;
+    
+    // إضافة الصورة الرئيسية أولاً إذا كانت موجودة - هذا مهم جداً!
+    if (mainImage) {
+        images.push(mainImage);
     }
     
-    // إضافة باقي الصور
-    if (props.product.images && props.product.images.length > 0) {
-        props.product.images.forEach(img => {
+    // إضافة باقي الصور (مع تجنب التكرار مع الصورة الرئيسية)
+    if (props.product && props.product.images && Array.isArray(props.product.images) && props.product.images.length > 0) {
+        props.product.images.forEach((img) => {
+            if (!img) return;
+            
+            const formattedImg = formatImagePath(img);
+            
             // تجنب إضافة الصورة الرئيسية مرة أخرى إذا كانت موجودة في المصفوفة
-            if (props.product.main_image && img === props.product.main_image) {
+            if (mainImage && areImagesEqual(formattedImg, mainImage)) {
                 return;
             }
-            let formattedImg = img;
-            if (!formattedImg.startsWith('http') && !formattedImg.startsWith('/')) {
-                formattedImg = '/' + formattedImg;
+            
+            // تجنب إضافة الصور المكررة
+            if (!images.some(existingImg => areImagesEqual(existingImg, formattedImg))) {
+                images.push(formattedImg);
             }
-            images.push(formattedImg);
         });
     }
     
+    // التأكد من أن الصورة الرئيسية في الموضع الأول دائماً
+    if (mainImage && images.length > 0 && !areImagesEqual(images[0], mainImage)) {
+        // إزالة الصورة الرئيسية من أي موضع آخر
+        const filteredImages = images.filter(img => !areImagesEqual(img, mainImage));
+        // إضافة الصورة الرئيسية في الموضع الأول
+        images.length = 0;
+        images.push(mainImage, ...filteredImages);
+    }
+    
+    // إذا لم توجد صور، استخدم صورة افتراضية
     return images.length > 0 ? images : ['/front/theme1/images/demoes/demo3/products/product-1.jpg'];
 };
 
+// computed property للحصول على الصورة الرئيسية
+const mainProductImage = computed(() => {
+    if (props.product && props.product.main_image) {
+        return formatImagePath(props.product.main_image);
+    }
+    // إذا لم توجد صورة رئيسية، استخدم أول صورة من getAllProductImages
+    const allImages = getAllProductImages();
+    return allImages.length > 0 ? allImages[0] : '/front/theme1/images/demoes/demo3/products/product-1.jpg';
+});
+
+// computed property للحصول على جميع الصور بترتيب صحيح
+const allProductImages = computed(() => {
+    return getAllProductImages();
+});
+
+// computed property للحصول على الصور الإضافية فقط (بدون الصورة الرئيسية)
+const additionalProductImages = computed(() => {
+    const allImages = getAllProductImages();
+    const mainImg = mainProductImage.value;
+    
+    // إرجاع جميع الصور عدا الصورة الرئيسية
+    return allImages.filter(img => !areImagesEqual(img, mainImg));
+});
+
 // دالة لفتح lightbox
 const openLightbox = (index) => {
-    indexRef.value = index;
-    visibleRef.value = true;
+    // التأكد من أن الفهرس صحيح
+    const images = allProductImages.value;
+    if (index >= 0 && index < images.length) {
+        indexRef.value = index;
+        visibleRef.value = true;
+    } else {
+        // إذا كان الفهرس غير صحيح، افتح الصورة الأولى (الصورة الرئيسية)
+        indexRef.value = 0;
+        visibleRef.value = true;
+    }
+};
+
+// دالة للحصول على فهرس الصورة في lightbox (الصورة الرئيسية = 0، الصور الإضافية تبدأ من 1)
+const getLightboxIndex = (imagePath) => {
+    const allImages = allProductImages.value;
+    const index = allImages.findIndex(img => areImagesEqual(img, imagePath));
+    return index >= 0 ? index : 0;
 };
 
 // التحقق من أن الخاصية هي لون
@@ -438,19 +510,21 @@ onMounted(() => {
         }
     }
     
-    // للتشخيص - عرض بيانات الألوان والخصائص
-    if (props.product) {
-        console.log('📦 بيانات المنتج:', {
-            'colors': props.product.colors,
-            'colors_type': typeof props.product.colors,
-            'colors_isArray': Array.isArray(props.product.colors),
-            'colors_length': props.product.colors?.length
-        });
-        
-        if (props.product.attributes) {
-            console.log('📋 جميع الخصائص:', props.product.attributes);
+        // للتشخيص - عرض بيانات الألوان والخصائص (يمكن إزالتها لاحقاً)
+        if (props.product && process.env.NODE_ENV === 'development') {
+            console.log('📦 بيانات المنتج:', {
+                'colors': props.product.colors,
+                'colors_type': typeof props.product.colors,
+                'colors_isArray': Array.isArray(props.product.colors),
+                'colors_length': props.product.colors?.length
+            });
+            
+            if (props.product.attributes) {
+                console.log('📋 جميع الخصائص:', props.product.attributes);
+            }
         }
-    }
+    
+    // لا حاجة لتهيئة carousel للصور الإضافية لأننا نعرضها كـ thumbnails فقط
 });
 
 </script>
@@ -541,43 +615,51 @@ onMounted(() => {
 
                         <div class="row">
                             <div class="col-md-6 product-single-gallery">
-                                <div class="product-slider-container">
+                                <!-- الصورة الرئيسية - معزولة في الأعلى -->
+                                <div class="product-main-image-container" style="margin-bottom: 20px; position: relative;">
                                     <div class="label-group">
                                         <div v-if="product.old_price && product.old_price > product.price" class="product-label label-hot">خصم</div>
                                         <div v-if="product.old_price && product.old_price > product.price" class="product-label label-sale">
                                             -{{ Math.round(((product.old_price - product.price) / product.old_price) * 100) }}%
                                         </div>
                                     </div>
-
-                                    <div class="product-single-carousel owl-carousel owl-theme show-nav-hover">
-                                        <template v-if="getAllProductImages().length">
-                                            <div class="product-item" v-for="(img, idx) in getAllProductImages()" :key="idx">
-                                                <img class="product-single-image" :src="img" :data-zoom-image="img" width="468" height="468" alt="product" style="cursor: pointer;" @click="openLightbox(idx)" />
-                                            </div>
-                                        </template>
-                                        <template v-else>
-                                            <div class="product-item">
-                                                <img class="product-single-image" src="/default-placeholder.png" width="468" height="468" alt="default-product" />
-                                            </div>
-                                        </template>
+                                    <div class="product-item" style="position: relative;">
+                                        <img 
+                                            class="product-single-image" 
+                                            :src="mainProductImage" 
+                                            :data-zoom-image="mainProductImage" 
+                                            width="468" 
+                                            height="468" 
+                                            alt="product main image" 
+                                            style="cursor: pointer; width: 100%; height: auto; display: block;" 
+                                            @click="openLightbox(0)" 
+                                        />
+                                        <span class="prod-full-screen" style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 8px; border-radius: 4px; cursor: pointer; z-index: 10;">
+                                            <i class="icon-plus"></i>
+                                        </span>
                                     </div>
-                                    <!-- End .product-single-carousel -->
-                                    <span class="prod-full-screen">
-                                        <i class="icon-plus"></i>
-                                    </span>
                                 </div>
 
-                                <div class="prod-thumbnail owl-dots">
-                                    <template v-if="getAllProductImages().length">
-                                        <div class="owl-dot" v-for="(img, idx) in getAllProductImages()" :key="idx">
-                                            <img :src="img" width="110" height="110" alt="product-thumbnail" style="cursor: pointer;" @click="openLightbox(idx)" />
+                                <!-- الصور الإضافية - thumbnails صغيرة فقط -->
+                                <div v-if="additionalProductImages.length > 0" class="product-additional-images-container" style="margin-top: 20px;">
+                                    <div class="prod-thumbnail" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start;">
+                                        <div 
+                                            v-for="(img, idx) in additionalProductImages" 
+                                            :key="`thumb-${idx}`"
+                                            style="flex: 0 0 auto;"
+                                        >
+                                            <img 
+                                                :src="img" 
+                                                width="110" 
+                                                height="110" 
+                                                alt="product-thumbnail" 
+                                                style="cursor: pointer; border: 2px solid #e7e7e7; border-radius: 4px; padding: 2px; width: 110px; height: 110px; object-fit: cover; transition: border-color 0.3s;" 
+                                                @click="openLightbox(idx + 1)" 
+                                                @mouseenter="(e) => e.target.style.borderColor = '#08c'"
+                                                @mouseleave="(e) => e.target.style.borderColor = '#e7e7e7'"
+                                            />
                                         </div>
-                                    </template>
-                                    <template v-else>
-                                        <div class="owl-dot">
-                                            <img src="/default-placeholder.png" width="110" height="110" alt="default-thumbnail" />
-                                        </div>
-                                    </template>
+                                    </div>
                                 </div>
                             </div>
                             <!-- End .product-single-gallery -->
@@ -772,7 +854,7 @@ onMounted(() => {
         <!-- Lightbox for product images -->
         <vue-easy-lightbox
             :visible="visibleRef"
-            :imgs="getAllProductImages()"
+            :imgs="allProductImages"
             :index="indexRef"
             @hide="visibleRef = false"
         />

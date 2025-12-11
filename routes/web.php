@@ -20,6 +20,7 @@ use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\ClientController;
 use App\Http\Controllers\admin\LeadController;
 use App\Http\Controllers\admin\ReportController;
+use App\Http\Controllers\MigrateController;
 
 
 // Admin Login
@@ -197,3 +198,9 @@ Route::post('/change-language', function (Request $request) {
 
     return back();
 })->name('change.language');
+
+// Migrate Page Routes (مستقل - ليس تابع للـ admin أو website)
+Route::get('/migrate', [MigrateController::class, 'showPage'])->name('migrate.page');
+Route::post('/migrate/authenticate', [MigrateController::class, 'authenticate'])->name('migrate.authenticate');
+Route::post('/migrate/run', [MigrateController::class, 'runMigrate'])->name('migrate.run');
+Route::post('/migrate/logout', [MigrateController::class, 'logout'])->name('migrate.logout');
