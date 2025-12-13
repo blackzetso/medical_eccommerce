@@ -58,7 +58,8 @@
                                 <div class="product-details">
                                     <div class="category-wrap">
                                         <div class="category-list">
-                                            <Link :href="route('web.category', product.category?.id)" class="product-category">{{ product.category?.name || 'عام' }}</Link>
+                                            <Link v-if="product.category?.id" :href="route('web.category', product.category.id)" class="product-category">{{ product.category.name || 'عام' }}</Link>
+                                            <span v-else class="product-category" style="cursor: default;">{{ product.category?.name || 'عام' }}</span>
                                         </div>
                                     </div>
                                     <h3 class="product-title">
@@ -122,6 +123,10 @@ const props = defineProps({
     pagination: {
         type: Object,
         default: () => ({})
+    },
+    search: {
+        type: String,
+        default: ''
     }
 });
 
@@ -177,6 +182,9 @@ const loadMoreProducts = () => {
     
     const params = new URLSearchParams();
     params.append('page', nextPage);
+    if (props.search) {
+        params.append('search', props.search);
+    }
     
     router.get(`${url}?${params.toString()}`, {}, {
         preserveScroll: true,

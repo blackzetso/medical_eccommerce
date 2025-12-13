@@ -107,9 +107,10 @@ class WebController extends Controller
                 // Exact match for sku only
                 $query->where('sku', '=', $searchTerm);
             } else {
-                // Partial match for name and description
+                // Partial match for name, name_en and description
                 $query->where(function($q) use ($searchTerm) {
                     $q->where('name', 'like', '%' . $searchTerm . '%')
+                      ->orWhere('name_en', 'like', '%' . $searchTerm . '%')
                       ->orWhere('description', 'like', '%' . $searchTerm . '%');
                 });
             }

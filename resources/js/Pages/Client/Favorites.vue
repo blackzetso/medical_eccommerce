@@ -50,9 +50,10 @@
                                     <div class="product-details">
                                         <div class="category-wrap">
                                             <div class="category-list">
-                                                <Link :href="route('web.category', favorite.product?.category_id)" class="product-category">
+                                                <Link v-if="favorite.product?.category_id" :href="route('web.category', favorite.product.category_id)" class="product-category">
                                                     {{ favorite.product?.category?.name || 'فئة' }}
                                                 </Link>
+                                                <span v-else class="product-category" style="cursor: default;">{{ favorite.product?.category?.name || 'فئة' }}</span>
                                             </div>
                                         </div>
                                         <h3 class="product-title">

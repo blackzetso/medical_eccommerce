@@ -599,7 +599,8 @@ onMounted(() => {
             <div class="container">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><Link :href="route('/')"><i class="icon-home"></i></Link></li>
-                    <li class="breadcrumb-item"><Link :href="route('web.category', { id: product.category_id })">القسم</Link></li>
+                    <li v-if="product.category_id" class="breadcrumb-item"><Link :href="route('web.category', { id: product.category_id })">القسم</Link></li>
+                    <li v-else class="breadcrumb-item">القسم</li>
                     <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
                 </ol>
             </div><!-- End .container -->
