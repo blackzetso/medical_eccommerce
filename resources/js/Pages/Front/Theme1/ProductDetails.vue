@@ -301,9 +301,40 @@ const getTotalPrice = computed(() => {
     return getFinalPrice.value * quantity.value;
 });
 
-// التحقق من أن المنتج متوفر في المخزون فقط
+// الحصول على مخزون الخصائص المحددة
+const getSelectedAttributesStock = computed(() => {
+    // إذا لم يكن للمنتج خصائص، استخدم مخزون المنتج
+    if (!hasAttributes.value) {
+        return props.product.stock_quantity || 0;
+    }
+    
+    // إذا لم يتم تحديد جميع الخصائص، لا يمكن معرفة المخزون
+    if (!areAllAttributesSelected.value) {
+        return null;
+    }
+    
+    // الحصول على أقل مخزون من الخصائص المحددة
+    let minStock = null;
+    for (const attr of props.product.attributes) {
+        const selectedValueId = selectedAttributes.value[attr.id];
+        if (selectedValueId) {
+            const selectedValue = attr.values.find(v => v.id == selectedValueId);
+            if (selectedValue && selectedValue.stock_quantity !== undefined) {
+                const stock = parseInt(selectedValue.stock_quantity) || 0;
+                if (minStock === null || stock < minStock) {
+                    minStock = stock;
+                }
+            }
+        }
+    }
+    
+    return minStock !== null ? minStock : 0;
+});
+
+// التحقق من أن المنتج متوفر في المخزون
 const isProductAvailable = computed(() => {
-    return props.product.stock_quantity && props.product.stock_quantity > 0;
+    const stock = getSelectedAttributesStock.value;
+    return stock !== null && stock > 0;
 });
 
 // التحقق من أن جميع الخصائص محددة
@@ -357,13 +388,23 @@ const isAuthenticated = computed(() => {
 const increaseQuantity = () => {
     // التحقق من المخزون المتاح
     if (props.product.manage_stock) {
+        const availableStock = getSelectedAttributesStock.value;
+        
+        // إذا لم يتم تحديد جميع الخصائص، لا يمكن زيادة الكمية
+        if (availableStock === null) {
+            if (window.$toast) {
+                window.$toast.warning('يرجى تحديد جميع الخصائص أولاً');
+            }
+            return;
+        }
+        
         // السماح بزيادة الكمية حتى المخزون المتاح
-        if (props.product.stock_quantity && quantity.value < props.product.stock_quantity) {
+        if (availableStock > 0 && quantity.value < availableStock) {
             quantity.value++;
         } else {
             // إظهار رسالة إذا وصلت للحد الأقصى
             if (window.$toast) {
-                window.$toast.warning('تم الوصول للحد الأقصى من المخزون المتاح (' + props.product.stock_quantity + ')');
+                window.$toast.warning('تم الوصول للحد الأقصى من المخزون المتاح (' + availableStock + ')');
             }
         }
     } else {
@@ -477,7 +518,6 @@ const addToFavorites = (product) => {
             }
         },
         onError: (errors) => {
-            console.error('خطأ في إضافة المنتج إلى المفضلة:', errors);
             let errorMessage = t('error_adding_to_favorites');
             
             if (errors.message) {
@@ -509,22 +549,6 @@ onMounted(() => {
             baseProductPrice.value = price;
         }
     }
-    
-        // للتشخيص - عرض بيانات الألوان والخصائص (يمكن إزالتها لاحقاً)
-        if (props.product && process.env.NODE_ENV === 'development') {
-            console.log('📦 بيانات المنتج:', {
-                'colors': props.product.colors,
-                'colors_type': typeof props.product.colors,
-                'colors_isArray': Array.isArray(props.product.colors),
-                'colors_length': props.product.colors?.length
-            });
-            
-            if (props.product.attributes) {
-                console.log('📋 جميع الخصائص:', props.product.attributes);
-            }
-        }
-    
-    // لا حاجة لتهيئة carousel للصور الإضافية لأننا نعرضها كـ thumbnails فقط
 });
 
 </script>
@@ -694,8 +718,16 @@ onMounted(() => {
                                     </li>
                                     <li>
                                         <span>المخزون:</span>
-                                        <strong v-if="product.stock_quantity && product.stock_quantity > 0">{{ product.stock_quantity }}</strong>
-                                        <strong v-else class="text-danger">غير متوفر</strong>
+                                        <template v-if="hasAttributes && areAllAttributesSelected">
+                                            <strong v-if="getSelectedAttributesStock !== null && getSelectedAttributesStock > 0">
+                                                {{ getSelectedAttributesStock }} (مخزون الخصائص المحددة)
+                                            </strong>
+                                            <strong v-else class="text-danger">غير متوفر</strong>
+                                        </template>
+                                        <template v-else>
+                                            <strong v-if="product.stock_quantity && product.stock_quantity > 0">{{ product.stock_quantity }}</strong>
+                                            <strong v-else class="text-danger">غير متوفر</strong>
+                                        </template>
                                     </li>
                                 </ul>
 

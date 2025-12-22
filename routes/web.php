@@ -19,7 +19,9 @@ use App\Http\Controllers\admin\AttributeController;
 use App\Http\Controllers\admin\DashboardController;
 use App\Http\Controllers\admin\ClientController;
 use App\Http\Controllers\admin\LeadController;
+use App\Http\Controllers\admin\RoleController;
 use App\Http\Controllers\admin\ReportController;
+use App\Http\Controllers\admin\StaffController;
 use App\Http\Controllers\MigrateController;
 
 
@@ -50,6 +52,7 @@ Route::prefix('client')->middleware('auth:web')->group(function () {
 // Client Login & Register
 Route::get('/login', [ClientAuthController::class, 'showLoginForm'])->name('client.login');
 Route::post('/login', [ClientAuthController::class, 'login']);
+Route::post('/logout', [ClientAuthController::class, 'logout'])->name('client.logout');
 Route::get('/register', [ClientAuthController::class, 'showRegisterForm'])->name('client.register');
 Route::post('/register', [ClientAuthController::class, 'register']);
 
@@ -94,6 +97,14 @@ Route::middleware([
 ])->prefix('admin')->as('admin.')->group(function () {
     Route::resource('dashboard', DashboardController::class);
 
+    Route::resource('roles', RoleController::class)
+        ->except('show')
+        ->middleware('permission:manage_roles');
+
+    Route::resource('staff', StaffController::class)
+        ->except('show')
+        ->middleware('permission:manage_staff');
+
     //start e-commerce
     // Import routes must be before resource routes to avoid route conflicts
     Route::get('/products/import', [ProductController::class, 'import'])->name('products.import');
@@ -101,6 +112,7 @@ Route::middleware([
     Route::post('/products/import', [ProductController::class, 'processImport'])->name('products.import.process');
     Route::resource('products', ProductController::class);
     Route::patch('/products/{id}/status', [ProductController::class, 'toggleStatus'])->name('products.status');
+    Route::patch('/products/{id}/add-stock', [ProductController::class, 'addStockQuantity'])->name('products.addStock');
 
     Route::resource('brands', BrandController::class);
     Route::patch('/brands/{id}/status', [BrandController::class, 'toggleStatus'])->name('brands.status');
@@ -108,9 +120,13 @@ Route::middleware([
     Route::resource('attributes', AttributeController::class);
     Route::patch('/attributes/{id}/status', [AttributeController::class, 'toggleStatus'])->name('attributes.status');
 
-    Route::resource('orders', OrderController::class);
+    // Routes الخاصة بالطلبات يجب أن تكون قبل resource route
+    Route::get('/orders/check-pending', [OrderController::class, 'checkPendingOrders'])->name('orders.checkPending');
+    Route::post('/orders/mark-as-seen', [OrderController::class, 'markOrdersAsSeen'])->name('orders.markAsSeen');
+    Route::post('/orders/reset-notification-seen', [OrderController::class, 'resetNotificationSeen'])->name('orders.resetNotificationSeen');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     Route::patch('/orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus'])->name('orders.updatePaymentStatus');
+    Route::resource('orders', OrderController::class);
 
     Route::resource('sliders', SliderController::class);
     Route::patch('/sliders/{id}/status', [SliderController::class, 'toggleStatus'])->name('sliders.status');
@@ -203,4 +219,5 @@ Route::post('/change-language', function (Request $request) {
 Route::get('/migrate', [MigrateController::class, 'showPage'])->name('migrate.page');
 Route::post('/migrate/authenticate', [MigrateController::class, 'authenticate'])->name('migrate.authenticate');
 Route::post('/migrate/run', [MigrateController::class, 'runMigrate'])->name('migrate.run');
+Route::post('/migrate/seed', [MigrateController::class, 'runSeed'])->name('migrate.seed');
 Route::post('/migrate/logout', [MigrateController::class, 'logout'])->name('migrate.logout');

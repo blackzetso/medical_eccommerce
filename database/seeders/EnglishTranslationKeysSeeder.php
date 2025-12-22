@@ -77,6 +77,61 @@ class EnglishTranslationKeysSeeder extends Seeder
             'help' => 'Help',
             'sign_out' => 'Sign Out',
 
+            // Permissions (module CRUD)
+            'view_products' => 'View products',
+            'create_products' => 'Create products',
+            'update_products' => 'Edit products',
+            'delete_products' => 'Delete products',
+
+            'view_categories' => 'View categories',
+            'create_categories' => 'Create categories',
+            'update_categories' => 'Edit categories',
+            'delete_categories' => 'Delete categories',
+
+            'view_brands' => 'View brands',
+            'create_brands' => 'Create brands',
+            'update_brands' => 'Edit brands',
+            'delete_brands' => 'Delete brands',
+
+            'view_attributes' => 'View attributes',
+            'create_attributes' => 'Create attributes',
+            'update_attributes' => 'Edit attributes',
+            'delete_attributes' => 'Delete attributes',
+
+            'view_orders' => 'View orders',
+            'create_orders' => 'Create orders',
+            'update_orders' => 'Edit orders',
+            'delete_orders' => 'Delete orders',
+
+            'view_sliders' => 'View sliders',
+            'create_sliders' => 'Create sliders',
+            'update_sliders' => 'Edit sliders',
+            'delete_sliders' => 'Delete sliders',
+
+            'view_clients' => 'View clients',
+            'create_clients' => 'Create clients',
+            'update_clients' => 'Edit clients',
+            'delete_clients' => 'Delete clients',
+
+            'view_leads' => 'View leads',
+            'create_leads' => 'Create leads',
+            'update_leads' => 'Edit leads',
+            'delete_leads' => 'Delete leads',
+
+            'view_reports' => 'View reports',
+            'create_reports' => 'Create reports',
+            'update_reports' => 'Edit reports',
+            'delete_reports' => 'Delete reports',
+
+            'view_settings' => 'View settings',
+            'create_settings' => 'Create settings',
+            'update_settings' => 'Edit settings',
+            'delete_settings' => 'Delete settings',
+
+            'manage_permissions' => 'Manage permissions',
+            'manage_roles' => 'Manage roles',
+            'manage_staff' => 'Manage staff',
+
             // Admin Panel - Products
             'product_name' => 'Product Name',
             'product_description' => 'Product Description',

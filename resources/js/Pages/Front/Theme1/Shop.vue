@@ -23,6 +23,8 @@
         <div class="container mb-3">
             <div class="row">
                 <div class="col-lg-12 main-content">
+                    <!-- Debug Info (remove in production) -->
+                  
                     <!-- Products Grid -->
                     <div class="row" v-if="allProducts && allProducts.length > 0">
                         <div v-for="product in allProducts" :key="product.id" class="col-6 col-sm-4 col-md-3 col-xl-5col">
@@ -37,7 +39,7 @@
                                     </div>
                                     <div class="btn-icon-group">
                                         <a 
-                                            v-if="product.manage_stock && product.stock_quantity > 0 || !product.manage_stock"
+                                            v-if="product.manage_stock && (product.total_stock || 0) > 0 || !product.manage_stock"
                                             href="#" 
                                             @click.prevent="addToCart(product)" 
                                             class="btn-icon btn-add-cart product-type-simple"
@@ -75,6 +77,25 @@
                                             <Link :href="route('client.login')" class="text-primary">يرجى تسجيل الدخول</Link> لعرض الأسعار
                                         </p>
                                     </div>
+                                    <!-- Stock Information -->
+                                    <div class="stock-info" style="margin-top: 8px; font-size: 1rem;">
+                                        <span v-if="product.manage_stock" 
+                                              :class="(product.total_stock || 0) > 0 ? 'text-success' : 'text-danger'"
+                                              style="font-weight: 600;">
+                                            <i :class="(product.total_stock || 0) > 0 ? 'icon-check-circle' : 'icon-close-circle'" 
+                                               style="margin-left: 4px; font-size: 1.1rem;"></i>
+                                            <span v-if="(product.total_stock || 0) > 0">
+                                                متوفر ({{ product.total_stock }} قطعة)
+                                            </span>
+                                            <span v-else>
+                                                غير متوفر
+                                            </span>
+                                        </span>
+                                        <span v-else class="text-info" style="font-weight: 600;">
+                                            <i class="icon-check-circle" style="margin-left: 4px; font-size: 1.1rem;"></i>
+                                            متوفر
+                                        </span>
+                                    </div>
                                 </div><!-- End .product-details -->
                             </div>
                         </div>
@@ -93,6 +114,14 @@
                             <i class="icon-spinner icon-spin" style="font-size: 2rem; color: #667eea;"></i>
                             <p class="mt-3">جاري تحميل المزيد من المنتجات...</p>
                         </div>
+                    </div>
+
+                    <!-- Manual Load More Button (for debugging) -->
+                    <div v-if="hasMore && !loading" class="text-center py-4">
+                        <button @click="loadMoreProducts" class="btn btn-primary btn-lg">
+                            تحميل المزيد من المنتجات
+                            <small class="d-block">الصفحة {{ currentPage }} من {{ pagination?.last_page || '?' }}</small>
+                        </button>
                     </div>
 
                     <!-- Scroll Trigger Element -->
@@ -140,34 +169,50 @@ const isAuthenticated = computed(() => {
 // Reactive data for infinite scroll
 const allProducts = ref([...props.products]);
 const currentPage = ref(props.pagination?.current_page || 1);
-const hasMore = ref(props.pagination?.last_page > props.pagination?.current_page || false);
+const hasMore = ref(props.pagination?.has_more || (props.pagination?.last_page > props.pagination?.current_page) || false);
 const loading = ref(false);
 const scrollTrigger = ref(null);
 let observer = null;
 
 // Watch for new products from props (when page changes)
-watch(() => props.products, (newProducts) => {
+watch(() => props.products, (newProducts, oldProducts) => {
     if (newProducts && newProducts.length > 0) {
-        // Check if these are new products or the same page
-        const newProductIds = newProducts.map(p => p.id);
-        const existingIds = allProducts.value.map(p => p.id);
-        
-        // Only add products that don't already exist
-        const uniqueProducts = newProducts.filter(p => !existingIds.includes(p.id));
-        if (uniqueProducts.length > 0) {
-            allProducts.value = [...allProducts.value, ...uniqueProducts];
+        // If this is the first page, replace all products
+        if (props.pagination?.current_page === 1) {
+            allProducts.value = [...newProducts];
+        } else {
+            // For subsequent pages, add only unique products
+            const newProductIds = newProducts.map(p => p.id);
+            const existingIds = allProducts.value.map(p => p.id);
+            
+            const uniqueProducts = newProducts.filter(p => !existingIds.includes(p.id));
+            
+            if (uniqueProducts.length > 0) {
+                allProducts.value = [...allProducts.value, ...uniqueProducts];
+            }
         }
     }
     
     // Update pagination state
     currentPage.value = props.pagination?.current_page || 1;
-    hasMore.value = props.pagination?.last_page > props.pagination?.current_page || false;
+    hasMore.value = props.pagination?.has_more || (props.pagination?.current_page < props.pagination?.last_page) || false;
     loading.value = false;
+    
+    // Re-setup observer if needed
+    if (hasMore.value && observer && scrollTrigger.value) {
+        setTimeout(() => {
+            if (scrollTrigger.value && !observer.takeRecords().length) {
+                observer.observe(scrollTrigger.value);
+            }
+        }, 100);
+    }
 }, { deep: true });
 
 // Methods
 const loadMoreProducts = () => {
-    if (loading.value || !hasMore.value) return;
+    if (loading.value || !hasMore.value) {
+        return;
+    }
     
     loading.value = true;
     const nextPage = currentPage.value + 1;
@@ -190,17 +235,24 @@ const loadMoreProducts = () => {
         preserveScroll: true,
         preserveState: true,
         only: ['products', 'pagination'],
-        onSuccess: () => {
+        onSuccess: (page) => {
             // State will be updated via watch
         },
-        onError: () => {
+        onError: (errors) => {
             loading.value = false;
         }
     });
 };
 
 const setupIntersectionObserver = () => {
-    if (!scrollTrigger.value) return;
+    if (!scrollTrigger.value) {
+        return;
+    }
+    
+    // Disconnect existing observer if any
+    if (observer) {
+        observer.disconnect();
+    }
     
     observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -210,7 +262,7 @@ const setupIntersectionObserver = () => {
         });
     }, {
         root: null,
-        rootMargin: '200px',
+        rootMargin: '100px',
         threshold: 0.1
     });
     
@@ -261,12 +313,6 @@ const getProductImage = (product) => {
 };
 
 onMounted(() => {
-    // Initialize component
-    console.log('Shop component mounted');
-    if (props.category) {
-        console.log('Current category:', props.category);
-    }
-    
     // Setup intersection observer after a short delay to ensure DOM is ready
     setTimeout(() => {
         setupIntersectionObserver();

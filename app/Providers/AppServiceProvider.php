@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +27,30 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Customize route model binding for Role
+        // Try 'web' guard first, then fallback to any guard
+        Route::bind('role', function ($value) {
+            $role = Role::where('id', $value)
+                ->where('guard_name', 'web')
+                ->first();
+            
+            // If not found with 'web' guard, try to find with any guard
+            if (!$role) {
+                \Log::info("Role with ID {$value} not found with 'web' guard, trying any guard");
+                $role = Role::where('id', $value)->first();
+                
+                if ($role) {
+                    \Log::info("Found role with ID {$value} using guard '{$role->guard_name}'");
+                }
+            }
+            
+            if (!$role) {
+                \Log::warning("Role with ID {$value} not found in database");
+                abort(404, 'Role not found');
+            }
+            
+            return $role;
+        });
         Inertia::share([
             'auth' => function () {
                 return [

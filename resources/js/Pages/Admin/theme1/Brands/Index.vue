@@ -8,6 +8,7 @@ import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
 
 const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 
 const props = defineProps({
   brands: Object,
@@ -101,7 +102,7 @@ function getLogo(brand) {
           />
         </div>
         <div class="col-2 text-center">
-          <Link :href="route('admin.brands.create')" class="btn btn-success-soft btn-round">
+          <Link v-if="can('create_brands')" :href="route('admin.brands.create')" class="btn btn-success-soft btn-round">
             <i class="bi bi-plus"></i>
           </Link>
         </div>
@@ -179,12 +180,14 @@ function getLogo(brand) {
                 <!-- الإجراءات -->
                 <td>
                   <Link
+                    v-if="can('update_brands')"
                     :href="route('admin.brands.edit', brand.id)"
                     class="btn btn-success-soft btn-round me-1"
                   >
                     <i class="bi bi-pencil-square"></i>
                   </Link>
                   <button
+                    v-if="can('delete_brands')"
                     class="btn btn-danger-soft btn-round"
                     @click="confirmDelete(brand.id)"
                   >

@@ -20,6 +20,8 @@ const form = useForm({
   slug: props.product.slug,
   description: props.product.description,
   short_description: props.product.short_description,
+  cost: props.product.cost || '',
+  profit_margin: props.product.profit_margin || '',
   price: props.product.price,
   sale_price: props.product.sale_price,
   discount_type: props.product.discount_type || 'none',
@@ -114,13 +116,25 @@ const removeExistingImage = (index) => {
   form.existing_images = [...existingImages.value]
 }
 
-// ✅ حساب السعر النهائي
-const calculateFinalPrice = () => {
-  if (!form.price || form.discount_type === 'none' || !form.discount_value) {
+// ✅ حساب السعر من التكلفة وهامش الربح
+const calculatePrice = computed(() => {
+  if (!form.cost || !form.profit_margin) {
     return parseFloat(form.price || 0).toFixed(2)
   }
+  const cost = parseFloat(form.cost) || 0
+  const profitMargin = parseFloat(form.profit_margin) || 0
+  const calculatedPrice = cost * (1 + profitMargin / 100)
+  form.price = calculatedPrice.toFixed(2)
+  return calculatedPrice.toFixed(2)
+})
 
-  const price = parseFloat(form.price)
+// ✅ حساب السعر النهائي بعد الخصم
+const calculateFinalPrice = () => {
+  const price = parseFloat(calculatePrice.value) || 0
+  if (form.discount_type === 'none' || !form.discount_value) {
+    return price.toFixed(2)
+  }
+
   const discountValue = parseFloat(form.discount_value)
 
   if (form.discount_type === 'fixed') {
@@ -135,6 +149,11 @@ const calculateFinalPrice = () => {
   return price.toFixed(2)
 }
 
+// ✅ التحقق من وجود خصائص
+const hasAttributes = computed(() => {
+  return form.attributes && form.attributes.length > 0
+})
+
 // ✅ إدارة الخصائص الجديدة
 const toggleAttributeValue = (attributeId, valueId, isChecked) => {
   if (isChecked) {
@@ -142,7 +161,8 @@ const toggleAttributeValue = (attributeId, valueId, isChecked) => {
     form.attributes.push({
       attribute_id: attributeId,
       attribute_value_id: valueId,
-      price_adjustment: 0
+      price_adjustment: 0,
+      stock_quantity: 0
     })
   } else {
     // حذف الخاصية
@@ -177,6 +197,22 @@ const updateAttributeValuePrice = (attributeId, valueId, newPrice) => {
   }
 }
 
+const updateAttributeValueStock = (attributeId, valueId, newStock) => {
+  const attr = form.attributes.find(
+    attr => attr.attribute_id == attributeId && attr.attribute_value_id == valueId
+  )
+  if (attr) {
+    attr.stock_quantity = parseInt(newStock) || 0
+  }
+}
+
+const getAttributeValueStock = (attributeId, valueId) => {
+  const attr = form.attributes.find(
+    attr => attr.attribute_id == attributeId && attr.attribute_value_id == valueId
+  )
+  return attr ? attr.stock_quantity : 0
+}
+
 const getSelectedAttributesSummary = () => {
   return form.attributes.map(attr => {
     const attribute = props.attributes.find(a => a.id == attr.attribute_id)
@@ -186,7 +222,8 @@ const getSelectedAttributesSummary = () => {
       attribute_value_id: attr.attribute_value_id,
       attribute_name: attribute?.name || '',
       value_name: value?.value || '',
-      price_adjustment: attr.price_adjustment || 0
+      price_adjustment: attr.price_adjustment || 0,
+      stock_quantity: attr.stock_quantity || 0
     }
   })
 }
@@ -210,7 +247,7 @@ function updateForm() {
   // قائمة الحقول المسموح بها فقط (تجنب إرسال methods و properties من useForm)
   const allowedFields = [
     'name', 'name_en', 'slug', 'description', 'short_description',
-    'price', 'sale_price', 'discount_type', 'discount_value',
+    'cost', 'profit_margin', 'price', 'sale_price', 'discount_type', 'discount_value',
     'stock_quantity', 'manage_stock', 'sku', 'product_code',
     'weight', 'dimensions', 'category_id', 'brand_id',
     'is_featured', 'status', 'meta_title', 'meta_description'
@@ -380,17 +417,43 @@ function updateForm() {
               <h5>التسعير والمخزون</h5>
             </div>
 
-            <!-- السعر الأساسي -->
+            <!-- التكلفة -->
             <div class="col-md-4">
-              <label class="form-label">السعر الأصلي *</label>
+              <label class="form-label">التكلفة *</label>
               <input
                 class="form-control"
-                v-model="form.price"
+                v-model="form.cost"
                 type="number"
                 step="0.01"
                 placeholder="0.00"
               />
-              <div v-if="form.errors.price" class="text-danger">{{ form.errors.price }}</div>
+              <div v-if="form.errors.cost" class="text-danger">{{ form.errors.cost }}</div>
+            </div>
+
+            <!-- هامش الربح -->
+            <div class="col-md-4">
+              <label class="form-label">هامش الربح (%) *</label>
+              <input
+                class="form-control"
+                v-model="form.profit_margin"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+              />
+              <div v-if="form.errors.profit_margin" class="text-danger">{{ form.errors.profit_margin }}</div>
+            </div>
+
+            <!-- السعر المحسوب -->
+            <div class="col-md-4">
+              <label class="form-label">السعر المحسوب</label>
+              <input
+                class="form-control"
+                :value="calculatePrice"
+                type="text"
+                readonly
+                style="background-color: #f8f9fa;"
+              />
+              <small class="text-muted">السعر = التكلفة × (1 + هامش الربح / 100)</small>
             </div>
 
             <!-- نوع الخصم -->
@@ -424,23 +487,25 @@ function updateForm() {
               <div v-if="form.errors.discount_value" class="text-danger">{{ form.errors.discount_value }}</div>
 
               <!-- عرض السعر النهائي -->
-              <div v-if="form.price && form.discount_value" class="mt-2">
+              <div v-if="calculatePrice && form.discount_value" class="mt-2">
                 <small class="text-success">
                   السعر النهائي: ${{ calculateFinalPrice() }}
                 </small>
               </div>
             </div>
 
-            <!-- كمية المخزون -->
-            <div class="col-md-4">
-              <label class="form-label">كمية المخزون</label>
+            <!-- كمية المخزون (فقط إذا لم يكن هناك خصائص) -->
+            <div class="col-md-4" v-if="!hasAttributes">
+              <label class="form-label">كمية المخزون *</label>
               <input
                 class="form-control"
                 v-model="form.stock_quantity"
                 type="number"
                 placeholder="0"
+                min="0"
               />
               <div v-if="form.errors.stock_quantity" class="text-danger">{{ form.errors.stock_quantity }}</div>
+              <small class="text-muted">يتم إدارة المخزون على مستوى الخصائص إذا كان المنتج له خصائص</small>
             </div>
 
             <!-- إدارة المخزون -->
@@ -507,6 +572,19 @@ function updateForm() {
                                 placeholder="0.00"
                               />
                             </div>
+
+                            <!-- كمية المخزون لهذه القيمة -->
+                            <div v-if="isAttributeValueSelected(attribute.id, value.id)" class="mt-2">
+                              <label class="form-label small">كمية المخزون:</label>
+                              <input
+                                type="number"
+                                class="form-control form-control-sm"
+                                :value="getAttributeValueStock(attribute.id, value.id)"
+                                @input="updateAttributeValueStock(attribute.id, value.id, $event.target.value)"
+                                placeholder="0"
+                                min="0"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -522,6 +600,7 @@ function updateForm() {
                           {{ attr.attribute_name }}: {{ attr.value_name }}
                           <span v-if="attr.price_adjustment > 0"> (+${{ attr.price_adjustment }})</span>
                           <span v-if="attr.price_adjustment < 0"> (${{ attr.price_adjustment }})</span>
+                          <span class="ms-2">المخزون: {{ attr.stock_quantity }}</span>
                         </span>
                       </div>
                     </div>

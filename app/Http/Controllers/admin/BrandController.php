@@ -147,9 +147,6 @@ class BrandController extends Controller
             // التحقق من وجود الملف وحذفه
             if (file_exists($fullPath)) {
                 unlink($fullPath);
-                Log::info('Deleted brand logo: ' . $fullPath);
-            } else {
-                Log::warning('Brand logo not found for deletion: ' . $fullPath);
             }
         }
         

@@ -20,6 +20,10 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             AdminSeeder::class,
+            PermissionSeeder::class,
+            LanguageSeeder::class, // يجب أن يكون قبل seeders الترجمات
+            TranslationKeysSeeder::class, // للغة العربية (الافتراضية)
+            EnglishTranslationKeysSeeder::class, // للغة الإنجليزية
             PharmacyCategoriesSeeder::class,
             PharmacyProductsSeeder::class,
             FooterSettingsSeeder::class,

@@ -1,10 +1,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import AppLayout from '@/Pages/Admin/theme1/Layout/App.vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 import { Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
+
+const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 
 const props = defineProps({
   attributes: Object,
@@ -93,6 +96,7 @@ const getAttributeValues = (attribute) => {
           </div>
           <div class="col-auto">
             <Link
+              v-if="can('create_attributes')"
               :href="route('admin.attributes.create')"
               class="btn btn-primary mb-0"
             >
@@ -202,12 +206,14 @@ const getAttributeValues = (attribute) => {
                 <!-- الإجراءات -->
                 <td>
                   <Link
+                    v-if="can('update_attributes')"
                     :href="route('admin.attributes.edit', attribute.id)"
                     class="btn btn-success-soft btn-round me-1"
                   >
                     <i class="bi bi-pencil-square"></i>
                   </Link>
                   <button
+                    v-if="can('delete_attributes')"
                     class="btn btn-danger-soft btn-round"
                     @click="deleteAttribute(attribute.id, attribute.name)"
                   >
@@ -241,6 +247,7 @@ const getAttributeValues = (attribute) => {
         <h5 class="text-muted">لا توجد خصائص</h5>
         <p class="text-muted">قم بإضافة خاصية جديدة للمنتجات</p>
         <Link
+          v-if="can('create_attributes')"
           :href="route('admin.attributes.create')"
           class="btn btn-primary"
         >

@@ -25,6 +25,7 @@ import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
 
 const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 
 const props = defineProps({
   categories: Object,
@@ -109,7 +110,7 @@ watch(search, (value) => {
           />
         </div>
         <div class="col-2 text-center">
-          <Link :href="route('admin.categories.create')" class="btn btn-success-soft btn-round">
+          <Link v-if="can('create_categories')" :href="route('admin.categories.create')" class="btn btn-success-soft btn-round">
             <i class="bi bi-plus"></i>
           </Link>
         </div>
@@ -137,10 +138,9 @@ watch(search, (value) => {
                 class="text-center"
               >
                 <td>{{ index + 1 }}</td>
-                <td>
+                <td class="text-center">
                   <CategoryCard
                     :image="getCategoryImage(category)"
-                    :name="category.name"
                   />
                 </td>
                 <td>
@@ -162,12 +162,14 @@ watch(search, (value) => {
                 </td>
                 <td>
                   <Link
+                    v-if="can('update_categories')"
                     :href="route('admin.categories.edit', category.id)"
                     class="btn btn-success-soft btn-round me-1"
                   >
                     <i class="bi bi-pencil-square"></i>
                   </Link>
                   <button
+                    v-if="can('delete_categories')"
                     class="btn btn-danger-soft btn-round"
                     @click="confirmDelete(category.id)"
                   >

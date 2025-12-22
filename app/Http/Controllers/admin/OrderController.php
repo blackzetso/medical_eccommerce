@@ -281,4 +281,72 @@ class OrderController extends Controller
     {
         //
     }
+
+    /**
+     * التحقق من وجود طلبات غير مرئية (notification_seen = 0) - أي طلب بغض النظر عن الحالة
+     */
+    public function checkPendingOrders(Request $request)
+    {
+        // البحث عن أي طلب بـ notification_seen = 0 (بغض النظر عن الحالة)
+        $unseenOrders = Order::where('notification_seen', 0)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        $unseenCount = $unseenOrders->count();
+        
+        if ($unseenCount > 0) {
+            return response()->json([
+                'has_unseen_orders' => true,
+                'unseen_count' => $unseenCount
+            ]);
+        }
+        
+        return response()->json([
+            'has_unseen_orders' => false,
+            'unseen_count' => 0
+        ]);
+    }
+
+    /**
+     * تحديث حالة notification_seen لجميع الطلبات (ليس فقط pending)
+     */
+    public function markOrdersAsSeen(Request $request)
+    {
+        // تحديث جميع الطلبات التي notification_seen = 0 إلى 1
+        $updated = Order::where('notification_seen', 0)
+            ->update(['notification_seen' => 1]);
+        
+        return response()->json([
+            'success' => true,
+            'updated_count' => $updated,
+            'message' => 'تم تحديث حالة الإشعارات بنجاح'
+        ]);
+    }
+
+    /**
+     * إعادة تعيين notification_seen للاختبار (للتطوير فقط)
+     */
+    public function resetNotificationSeen(Request $request)
+    {
+        // إعادة تعيين جميع الطلبات إلى notification_seen = 0
+        $updated = Order::update(['notification_seen' => 0]);
+        
+        return response()->json([
+            'success' => true,
+            'updated_count' => $updated,
+            'message' => 'تم إعادة تعيين حالة الإشعارات للاختبار'
+        ]);
+    }
+
+    /**
+     * الحصول على آخر معرف طلب (لتهيئة النظام)
+     */
+    public function getLastOrderId()
+    {
+        $lastOrder = Order::orderBy('created_at', 'desc')->first();
+        
+        return response()->json([
+            'last_order_id' => $lastOrder ? $lastOrder->id : 0
+        ]);
+    }
 }

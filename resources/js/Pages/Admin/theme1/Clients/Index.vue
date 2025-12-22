@@ -1,10 +1,13 @@
 <script setup>
 import { ref, watch } from 'vue'
 import AppLayout from '@/Pages/Admin/theme1/Layout/App.vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
+
+const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 
 const props = defineProps({
   clients: Object,
@@ -183,6 +186,7 @@ function formatCurrency(amount) {
                       <i class="bi bi-eye"></i>
                     </Link>
                     <Link
+                      v-if="can('update_clients')"
                       :href="route('admin.clients.edit', client.id)"
                       class="btn btn-sm btn-primary"
                       data-bs-toggle="tooltip"
@@ -192,6 +196,7 @@ function formatCurrency(amount) {
                       <i class="bi bi-pencil"></i>
                     </Link>
                     <button
+                      v-if="can('update_clients')"
                       @click="toggleStatus(client.id)"
                       class="btn btn-sm"
                       :class="client.email_verified_at ? 'btn-warning' : 'btn-success'"

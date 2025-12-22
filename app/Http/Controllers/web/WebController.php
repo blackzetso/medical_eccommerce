@@ -57,13 +57,42 @@ class WebController extends Controller
         $childrens = Category::where('parent_id', $id)->where('status', 'enable')->paginate(12);
         if ($childrens->count() > 0) {
             // القسم له أقسام فرعية، رجع صفحة الأقسام الفرعية
-            return Inertia::render('Front/Theme1/Categories', compact('childrens'));
+            return Inertia::render('Front/Theme1/Categories', [
+                'childrens' => $childrens,
+                'parent' => $category
+            ]);
         } else {
             // القسم ليس له أقسام فرعية، رجع صفحة المنتجات تحت القسم
+            
+            // Debug: Check total products for this category
+            $totalProductsInCategory = Product::where('category_id', $id)
+                ->where('status', true)
+                ->count();
+            
             $products = Product::where('category_id', $id)
                 ->where('status', true)
-                ->with('category')
+                ->with(['category', 'brand'])
+                ->orderByRaw('CASE 
+                    WHEN manage_stock = 0 THEN 0 
+                    WHEN manage_stock = 1 AND stock_quantity > 0 THEN 0 
+                    ELSE 1 
+                END ASC')
+                ->orderBy('created_at', 'desc')
                 ->paginate(12);
+                
+            // إضافة معايير البحث والفئة إلى pagination links
+            $products->appends($request->only(['page']));
+            
+            // إضافة total_stock لكل منتج (من الخصائص أو المنتج نفسه)
+            $productsData = $products->getCollection()->map(function ($product) {
+                $productArray = $product->toArray();
+                $productArray['total_stock'] = $product->total_stock; // استخدام accessor
+                return $productArray;
+            });
+            
+            // استبدال collection في paginator
+            $products->setCollection($productsData);
+            
             return Inertia::render('Front/Theme1/Shop', [
                 'category' => $category,
                 'products' => $products->items(),
@@ -74,6 +103,9 @@ class WebController extends Controller
                     'last_page' => $products->lastPage(),
                     'from' => $products->firstItem(),
                     'to' => $products->lastItem(),
+                    'next_page_url' => $products->nextPageUrl(),
+                    'prev_page_url' => $products->previousPageUrl(),
+                    'has_more' => $products->hasMorePages()
                 ]
             ]);
         }
@@ -88,35 +120,56 @@ class WebController extends Controller
         if ($request->has('search') && $request->search) {
             $searchTerm = trim($request->search);
             
-            // Check if search term matches product_code exactly
-            $hasExactProductCode = Product::where('status', true)
-                ->whereNotNull('product_code')
-                ->where('product_code', '=', $searchTerm)
-                ->exists();
+            // تقسيم مصطلح البحث إلى كلمات منفصلة
+            $searchWords = preg_split('/\s+/', $searchTerm, -1, PREG_SPLIT_NO_EMPTY);
             
-            // Check if search term matches sku exactly
-            $hasExactSku = Product::where('status', true)
-                ->whereNotNull('sku')
-                ->where('sku', '=', $searchTerm)
-                ->exists();
-            
-            if ($hasExactProductCode) {
-                // Exact match for product_code only
-                $query->where('product_code', '=', $searchTerm);
-            } elseif ($hasExactSku) {
-                // Exact match for sku only
-                $query->where('sku', '=', $searchTerm);
-            } else {
-                // Partial match for name, name_en and description
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('name', 'like', '%' . $searchTerm . '%')
-                      ->orWhere('name_en', 'like', '%' . $searchTerm . '%')
-                      ->orWhere('description', 'like', '%' . $searchTerm . '%');
+            $query->where(function($q) use ($searchWords, $searchTerm) {
+                // البحث في SKU أو كود المنتج (مطابقة كاملة أو جزئية)
+                $q->where(function($subQ) use ($searchTerm) {
+                    $subQ->where('sku', 'like', '%' . $searchTerm . '%')
+                         ->orWhere('product_code', 'like', '%' . $searchTerm . '%');
                 });
-            }
+                
+                // أو البحث في اسم المنتج (جميع الكلمات يجب أن تظهر في الاسم)
+                if (count($searchWords) > 0) {
+                    $q->orWhere(function($nameQ) use ($searchWords) {
+                        // كل كلمة من كلمات البحث يجب أن تظهر في الاسم (عربي أو إنجليزي)
+                        foreach ($searchWords as $word) {
+                            $nameQ->where(function($wordQ) use ($word) {
+                                $wordQ->where('name', 'like', '%' . $word . '%')
+                                      ->orWhere('name_en', 'like', '%' . $word . '%');
+                            });
+                        }
+                    });
+                }
+            });
+            
+            // Order by stock availability: products with stock > 0 first, then out of stock
+            $query->orderByRaw('CASE 
+                WHEN manage_stock = 0 THEN 0 
+                WHEN manage_stock = 1 AND stock_quantity > 0 THEN 0 
+                ELSE 1 
+            END ASC')
+            ->orderBy('created_at', 'desc');
+        } else {
+            // If no search, just order by created_at
+            $query->orderBy('created_at', 'desc');
         }
         
         $products = $query->paginate(12);
+
+        // إضافة معايير البحث إلى pagination links
+        $products->appends($request->only(['search']));
+
+        // إضافة total_stock لكل منتج (من الخصائص أو المنتج نفسه)
+        $productsData = $products->getCollection()->map(function ($product) {
+            $productArray = $product->toArray();
+            $productArray['total_stock'] = $product->total_stock; // استخدام accessor
+            return $productArray;
+        });
+
+        // استبدال collection في paginator
+        $products->setCollection($productsData);
 
         return Inertia::render('Front/Theme1/Shop', [
             'products' => $products->items(),
@@ -128,6 +181,7 @@ class WebController extends Controller
                 'last_page' => $products->lastPage(),
                 'from' => $products->firstItem(),
                 'to' => $products->lastItem(),
+                'has_more' => $products->hasMorePages()
             ]
         ]);
     }
@@ -167,6 +221,16 @@ class WebController extends Controller
         $products = $query->with(['category'])->paginate(12);
         $categories = Category::where('status', 'enable')->get();
 
+        // إضافة total_stock لكل منتج (من الخصائص أو المنتج نفسه)
+        $productsData = $products->getCollection()->map(function ($product) {
+            $productArray = $product->toArray();
+            $productArray['total_stock'] = $product->total_stock; // استخدام accessor
+            return $productArray;
+        });
+
+        // استبدال collection في paginator
+        $products->setCollection($productsData);
+
         return Inertia::render('Front/Theme1/Shop', [
             'category' => $category,
             'categories' => $categories,
@@ -203,7 +267,8 @@ class WebController extends Controller
                 'attribute_values.label as value_label',
                 'attribute_values.color_code as value_color_code',
                 'attribute_values.image as value_image',
-                'product_attributes.price_adjustment as price'
+                'product_attributes.price_adjustment as price',
+                'product_attributes.stock_quantity as stock_quantity'
             )
             ->orderBy('attributes.sort_order')
             ->orderBy('attribute_values.sort_order')
@@ -230,7 +295,8 @@ class WebController extends Controller
                 'label' => $row->value_label,
                 'color_code' => $row->value_color_code,
                 'image' => $row->value_image,
-                'price' => floatval($row->price ?? 0)
+                'price' => floatval($row->price ?? 0),
+                'stock_quantity' => intval($row->stock_quantity ?? 0)
             ];
         }
 
@@ -299,7 +365,6 @@ class WebController extends Controller
                     ");
             });
         } catch (\Exception $e) {
-            Log::error('Failed to send contact email: ' . $e->getMessage());
             // Continue even if email fails
         }
 

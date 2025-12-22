@@ -9,6 +9,8 @@ class Language extends Model
     protected $fillable = [
         'name',
         'code',
+        'status',
+        'is_default',
         'is_rtl'
     ];
 }

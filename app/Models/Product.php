@@ -16,6 +16,8 @@ class Product extends Model
         'description',
         'short_description',
         'price',
+        'cost',
+        'profit_margin',
         'sale_price',
         'discount_type',
         'discount_value',
@@ -39,6 +41,8 @@ class Product extends Model
     protected $casts = [
         'images' => 'array',
         'price' => 'decimal:2',
+        'cost' => 'decimal:2',
+        'profit_margin' => 'decimal:2',
         'sale_price' => 'decimal:2',
         'discount_value' => 'decimal:2',
         'weight' => 'decimal:2',
@@ -71,7 +75,7 @@ class Product extends Model
     public function attributes(): BelongsToMany
     {
         return $this->belongsToMany(Attribute::class, 'product_attributes')
-                    ->withPivot('attribute_value_id', 'price_adjustment')
+                    ->withPivot('attribute_value_id', 'price_adjustment', 'stock_quantity')
                     ->withTimestamps();
     }
 
@@ -81,7 +85,7 @@ class Product extends Model
     public function attributeValues(): BelongsToMany
     {
         return $this->belongsToMany(AttributeValue::class, 'product_attributes')
-                    ->withPivot('attribute_id', 'price_adjustment')
+                    ->withPivot('attribute_id', 'price_adjustment', 'stock_quantity')
                     ->withTimestamps();
     }
 
@@ -147,8 +151,126 @@ class Product extends Model
      */
     public function getImagesListAttribute()
     {
-        Log::info('Images raw from DB:', ['images' => $this->attributes['images'] ?? null]);
-        Log::info('Images after cast:', ['images' => $this->images]);
         return $this->images;
+    }
+
+    /**
+     * Calculate price from cost and profit margin
+     * Price = Cost × (1 + Profit Margin / 100)
+     */
+    public function calculatePriceFromCostAndMargin()
+    {
+        if ($this->cost !== null && $this->profit_margin !== null) {
+            return $this->cost * (1 + $this->profit_margin / 100);
+        }
+        return $this->price;
+    }
+
+    /**
+     * Check if product has attributes
+     */
+    public function hasAttributes()
+    {
+        return $this->attributes()->count() > 0;
+    }
+
+    /**
+     * Get stock quantity for a specific attribute value
+     * @param int $attributeId
+     * @param int $attributeValueId
+     * @return int
+     */
+    public function getAttributeStock($attributeId, $attributeValueId)
+    {
+        $pivot = \DB::table('product_attributes')
+            ->where('product_id', $this->id)
+            ->where('attribute_id', $attributeId)
+            ->where('attribute_value_id', $attributeValueId)
+            ->first();
+        
+        return $pivot ? ($pivot->stock_quantity ?? 0) : 0;
+    }
+
+    /**
+     * Get stock quantity for multiple attribute values (combination)
+     * @param array $attributes [attribute_id => attribute_value_id]
+     * @return int|null Returns null if product has no attributes, otherwise returns the minimum stock
+     */
+    public function getAttributesStock($attributes = [])
+    {
+        // If product has no attributes, return product stock
+        if (!$this->hasAttributes()) {
+            return $this->stock_quantity;
+        }
+
+        // If attributes array is empty, return null (attributes must be selected)
+        if (empty($attributes)) {
+            return null;
+        }
+
+        // Get minimum stock from all selected attribute values
+        $stocks = [];
+        foreach ($attributes as $attributeId => $attributeValueId) {
+            $stock = $this->getAttributeStock($attributeId, $attributeValueId);
+            $stocks[] = $stock;
+        }
+
+        // Return minimum stock (the limiting factor)
+        return !empty($stocks) ? min($stocks) : 0;
+    }
+
+    /**
+     * Deduct stock from attribute value
+     * @param int $attributeId
+     * @param int $attributeValueId
+     * @param int $quantity
+     * @return bool
+     */
+    public function deductAttributeStock($attributeId, $attributeValueId, $quantity)
+    {
+        $affected = \DB::table('product_attributes')
+            ->where('product_id', $this->id)
+            ->where('attribute_id', $attributeId)
+            ->where('attribute_value_id', $attributeValueId)
+            ->where('stock_quantity', '>=', $quantity)
+            ->decrement('stock_quantity', $quantity);
+        
+        return $affected > 0;
+    }
+
+    /**
+     * Get total stock quantity for the product
+     * If product has attributes, returns sum of all attribute stock quantities
+     * Otherwise, returns product-level stock_quantity
+     * @return int
+     */
+    public function getTotalStockAttribute()
+    {
+        // If product has no attributes, return product-level stock
+        if (!$this->hasAttributes()) {
+            return $this->stock_quantity ?? 0;
+        }
+
+        // If product has attributes, sum all attribute stock quantities
+        $totalStock = \DB::table('product_attributes')
+            ->where('product_id', $this->id)
+            ->sum('stock_quantity');
+        
+        return (int) $totalStock;
+    }
+
+    /**
+     * Boot method to auto-calculate price when cost or profit_margin changes
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($product) {
+            // Calculate price from cost and profit margin if both are set
+            if ($product->cost !== null && $product->profit_margin !== null && $product->isDirty(['cost', 'profit_margin'])) {
+                $product->price = $product->cost * (1 + $product->profit_margin / 100);
+            }
+        });
     }
 }

@@ -1,10 +1,13 @@
 <script setup>
 import { ref, watch } from 'vue'
 import AppLayout from '@/Pages/Admin/theme1/Layout/App.vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
+
+const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 
 const props = defineProps({
   leads: Object,
@@ -281,7 +284,7 @@ function getStatusText(status) {
                       <i class="bi bi-eye"></i>
                     </Link>
                     <button
-                      v-if="lead.status !== 'converted'"
+                      v-if="can('create_leads') && lead.status !== 'converted'"
                       @click="convertToUser(lead.id)"
                       class="btn btn-sm btn-success"
                       data-bs-toggle="tooltip"
@@ -291,6 +294,7 @@ function getStatusText(status) {
                       <i class="bi bi-person-plus"></i>
                     </button>
                     <button
+                      v-if="can('update_leads')"
                       @click="updateStatus(lead.id, lead.status)"
                       class="btn btn-sm btn-info"
                       data-bs-toggle="tooltip"
@@ -300,6 +304,7 @@ function getStatusText(status) {
                       <i class="bi bi-pencil"></i>
                     </button>
                     <button
+                      v-if="can('delete_leads')"
                       @click="confirmDelete(lead.id)"
                       class="btn btn-sm btn-danger"
                       data-bs-toggle="tooltip"

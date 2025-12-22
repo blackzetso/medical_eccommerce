@@ -15,6 +15,7 @@
         "laravel/jetstream": "^5.3",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
+        "spatie/laravel-permission": "^6.24",
         "symfony/http-client": "^7.3",
         "tightenco/ziggy": "^2.5",
         "toshy/bunnynet-php": "^8.0"

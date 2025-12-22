@@ -11,6 +11,7 @@ const props = defineProps({
 })
 
 const form = useForm({
+  title: props.slider.title,
   description: props.slider.description,
   image: null,
   existing_image: props.slider.image,
@@ -50,25 +51,29 @@ const removeImage = () => {
 
 // ✅ إرسال النموذج
 const submit = () => {
-  form.post(route('admin.sliders.update', props.slider.id), {
-    forceFormData: true,
-    _method: 'PUT',
-    onSuccess: () => {
-      Swal.fire({
-        icon: 'success',
-        title: 'تم التحديث',
-        text: 'تم تحديث السلايدر بنجاح',
-        timer: 2000
-      })
-    },
-    onError: (errors) => {
-      Swal.fire({
-        icon: 'error',
-        title: 'خطأ',
-        text: 'حدثت مشكلة أثناء التحديث',
-      })
-    }
-  })
+  form
+    .transform((data) => ({
+      ...data,
+      _method: 'put'
+    }))
+    .post(route('admin.sliders.update', props.slider.id), {
+      forceFormData: true,
+      onSuccess: () => {
+        Swal.fire({
+          icon: 'success',
+          title: 'تم التحديث',
+          text: 'تم تحديث السلايدر بنجاح',
+          timer: 2000
+        })
+      },
+      onError: (errors) => {
+        Swal.fire({
+          icon: 'error',
+          title: 'خطأ',
+          text: 'حدثت مشكلة أثناء التحديث',
+        })
+      }
+    })
 }
 </script>
 
@@ -88,6 +93,22 @@ const submit = () => {
         <div class="col-lg-8">
           <div class="card card-body bg-transparent border">
             <form @submit.prevent="submit">
+              <!-- العنوان -->
+              <div class="mb-3">
+                <label class="form-label">العنوان <span class="text-danger">*</span></label>
+                <input
+                  type="text"
+                  class="form-control"
+                  v-model="form.title"
+                  :class="{ 'is-invalid': form.errors.title }"
+                  placeholder="أدخل عنوان السلايدر"
+                  required
+                />
+                <div class="invalid-feedback" v-if="form.errors.title">
+                  {{ form.errors.title }}
+                </div>
+              </div>
+
               <!-- الوصف -->
               <div class="mb-3">
                 <label class="form-label">الوصف</label>

@@ -18,20 +18,8 @@ function printInvoice() {
   window.print()
 }
 
-// Debug: Log props when component mounts
 onMounted(() => {
-  console.log('=== ORDER DETAILS COMPONENT MOUNTED ===')
-  console.log('Order:', props.order)
-  console.log('Order items:', props.order.items)
-
-  // Debug each item's product
-  if (props.order.items) {
-    props.order.items.forEach((item, index) => {
-      console.log(`Item ${index}:`, item)
-      console.log(`Item ${index} product:`, item.product)
-      console.log(`Item ${index} product images:`, item.product?.images)
-    })
-  }
+  // Component mounted
 })
 
 // تحديث حالة الطلب
@@ -198,19 +186,13 @@ function getEmbedUrl(url) {
 // الحصول على أول صورة للمنتج
 function getProductImage(product) {
   if (!product) {
-    console.log('No product provided')
     return '/admin/theme1/images/placeholder-image.png'
   }
-
-  console.log('Product:', product)
-  console.log('Product images raw:', product.images)
-  console.log('Product images type:', typeof product.images)
 
   let images = product.images
 
   // If images is null or undefined
   if (!images) {
-    console.log('No images found')
     return '/admin/theme1/images/placeholder-image.png'
   }
 
@@ -229,7 +211,6 @@ function getProductImage(product) {
   // Check if images is an array with at least one item
   if (Array.isArray(images) && images.length > 0) {
     const imagePath = images[0]
-    console.log('Final image path:', imagePath)
 
     // Clean the path and ensure correct format
     let cleanPath = imagePath
@@ -253,7 +234,6 @@ function getProductImage(product) {
     return `/storage/${cleanPath}`
   }
 
-  console.log('No valid images found')
   return '/admin/theme1/images/placeholder-image.png'
 }
 </script>

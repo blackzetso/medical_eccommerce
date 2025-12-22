@@ -7,6 +7,7 @@ import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
 
 const form = useForm({
+  title: '',
   description: '',
   image: null,
   link: '',
@@ -79,6 +80,22 @@ const submit = () => {
         <div class="col-lg-8">
           <div class="card card-body bg-transparent border">
             <form @submit.prevent="submit">
+              <!-- العنوان -->
+              <div class="mb-3">
+                <label class="form-label">العنوان <span class="text-danger">*</span></label>
+                <input
+                  type="text"
+                  class="form-control"
+                  v-model="form.title"
+                  :class="{ 'is-invalid': form.errors.title }"
+                  placeholder="أدخل عنوان السلايدر"
+                  required
+                />
+                <div class="invalid-feedback" v-if="form.errors.title">
+                  {{ form.errors.title }}
+                </div>
+              </div>
+
               <!-- الوصف -->
               <div class="mb-3">
                 <label class="form-label">الوصف</label>

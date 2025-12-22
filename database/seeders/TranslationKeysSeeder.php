@@ -71,6 +71,61 @@ class TranslationKeysSeeder extends Seeder
             'help' => 'المساعدة',
             'sign_out' => 'تسجيل الخروج',
 
+            // Permissions (module CRUD)
+            'view_products' => 'عرض المنتجات',
+            'create_products' => 'إضافة المنتجات',
+            'update_products' => 'تعديل المنتجات',
+            'delete_products' => 'حذف المنتجات',
+
+            'view_categories' => 'عرض الأقسام',
+            'create_categories' => 'إضافة الأقسام',
+            'update_categories' => 'تعديل الأقسام',
+            'delete_categories' => 'حذف الأقسام',
+
+            'view_brands' => 'عرض العلامات التجارية',
+            'create_brands' => 'إضافة العلامات التجارية',
+            'update_brands' => 'تعديل العلامات التجارية',
+            'delete_brands' => 'حذف العلامات التجارية',
+
+            'view_attributes' => 'عرض الخصائص',
+            'create_attributes' => 'إضافة الخصائص',
+            'update_attributes' => 'تعديل الخصائص',
+            'delete_attributes' => 'حذف الخصائص',
+
+            'view_orders' => 'عرض الطلبات',
+            'create_orders' => 'إضافة الطلبات',
+            'update_orders' => 'تعديل الطلبات',
+            'delete_orders' => 'حذف الطلبات',
+
+            'view_sliders' => 'عرض الشرائح',
+            'create_sliders' => 'إضافة الشرائح',
+            'update_sliders' => 'تعديل الشرائح',
+            'delete_sliders' => 'حذف الشرائح',
+
+            'view_clients' => 'عرض العملاء',
+            'create_clients' => 'إضافة العملاء',
+            'update_clients' => 'تعديل العملاء',
+            'delete_clients' => 'حذف العملاء',
+
+            'view_leads' => 'عرض طلبات التسجيل',
+            'create_leads' => 'إضافة طلبات التسجيل',
+            'update_leads' => 'تعديل طلبات التسجيل',
+            'delete_leads' => 'حذف طلبات التسجيل',
+
+            'view_reports' => 'عرض التقارير',
+            'create_reports' => 'إضافة التقارير',
+            'update_reports' => 'تعديل التقارير',
+            'delete_reports' => 'حذف التقارير',
+
+            'view_settings' => 'عرض الإعدادات',
+            'create_settings' => 'إضافة الإعدادات',
+            'update_settings' => 'تعديل الإعدادات',
+            'delete_settings' => 'حذف الإعدادات',
+
+            'manage_permissions' => 'إدارة الصلاحيات',
+            'manage_roles' => 'إدارة الأدوار',
+            'manage_staff' => 'إدارة الموظفين',
+
             // Admin Panel - Products
             'product_name' => 'اسم المنتج',
             'product_description' => 'وصف المنتج',

@@ -71,8 +71,9 @@
                             </ul>
                         </div>
 
-                        <template v-if="user">
-                                <Link :href="route('client.dashboard')" class="header-icon  " :title="t('my_account')"><i class="icon-user-2"></i></Link>
+                        <template v-if="isAuthenticated">
+                                <!-- User dropdown -->
+                                <Link :href="route('client.dashboard')" class="header-icon" :title="t('my_account')"><i class="icon-user-2"></i></Link>
                                 <Link :href="route('client.favorites')" class="header-icon header-icon-wishlist" :title="t('wishlist')"><i class="icon-wishlist-2"></i></Link>
                                 <CartDropdown />
                             </template>
@@ -93,18 +94,22 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import { useTranslations } from '@/composables/translations'
 import CartDropdown from './CartDropdown.vue'
 const showSearch = ref(false)
+const showUserDropdown = ref(false)
 const searchQuery = ref('')
 const asset = (path) => '/' + path
 
 const page = usePage()
 const { t } = useTranslations()
-const user = page.props.auth?.user
+const user = computed(() => page.props.auth?.user)
+const isAuthenticated = computed(() => {
+    return !!(user.value && user.value.id)
+})
 const languages = Array.isArray(page.props.languages) 
     ? page.props.languages.filter(lang => lang !== null && lang !== undefined)
     : []
@@ -169,6 +174,23 @@ const handleSearch = () => {
         })
     }
 }
+
+const logout = () => {
+    router.post(route('client.logout'))
+}
+
+const toggleDropdown = () => {
+    showUserDropdown.value = !showUserDropdown.value
+}
+
+// Close dropdown when clicking outside
+onMounted(() => {
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.user-dropdown')) {
+            showUserDropdown.value = false
+        }
+    })
+})
 </script>
 
 <style scoped>
@@ -341,5 +363,59 @@ const handleSearch = () => {
         visibility: visible !important;
         width: 100% !important;
     }
+}
+
+/* User dropdown styles */
+.user-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.user-dropdown .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    min-width: 160px;
+    padding: 5px 0;
+    margin: 2px 0 0;
+    font-size: 14px;
+    text-align: left;
+    background-color: #fff;
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: 4px;
+    box-shadow: 0 6px 12px rgba(0,0,0,.175);
+    background-clip: padding-box;
+}
+
+.user-dropdown .dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 3px 20px;
+    clear: both;
+    font-weight: normal;
+    line-height: 1.42857143;
+    color: #333;
+    white-space: nowrap;
+    text-decoration: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: right;
+}
+
+.user-dropdown .dropdown-item:hover,
+.user-dropdown .dropdown-item:focus {
+    color: #262626;
+    text-decoration: none;
+    background-color: #f5f5f5;
+}
+
+.user-dropdown .dropdown-divider {
+    height: 1px;
+    margin: 9px 0;
+    overflow: hidden;
+    background-color: #e5e5e5;
+    border: none;
 }
 </style>

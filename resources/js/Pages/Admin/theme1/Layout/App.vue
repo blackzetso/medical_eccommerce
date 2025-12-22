@@ -3,26 +3,27 @@
     import { router } from '@inertiajs/vue3'
     import { route } from 'ziggy-js';
     import { useTranslations } from '@/composables/translations'
-    import { computed, onMounted, watch, ref, nextTick } from 'vue'
+    import { computed, onMounted, onUnmounted, watch, ref, nextTick } from 'vue'
+    import axios from 'axios'
+    import Swal from 'sweetalert2'
 
     const page = usePage()
+    const can = (permission) => {
+        const permissions = page.props.auth?.permissions
+        if (!permissions || !Array.isArray(permissions)) {
+            return false
+        }
+        return permissions.includes(permission)
+    }
     const { t } = useTranslations()
+    
+    onMounted(() => {
+        // Component mounted
+    })
     const languages = Array.isArray(page.props.languages) 
         ? page.props.languages.filter(lang => lang !== null && lang !== undefined)
         : []
     const currentLocale = page.props.locale || 'ar'
-    
-    // Debug: Check if languages and translations are available
-    if (import.meta.env.DEV) {
-        console.log('=== ADMIN TRANSLATION DEBUG ===')
-        console.log('Languages from props:', page.props.languages)
-        console.log('Filtered languages:', languages)
-        console.log('Languages count:', languages.length)
-        console.log('Current locale:', currentLocale)
-        console.log('Translations from props:', page.props.translations)
-        console.log('Translations count:', Object.keys(page.props.translations || {}).length)
-        console.log('Sample translation keys:', Object.keys(page.props.translations || {}).slice(0, 5))
-    }
 
     // Function to check if a route is active
     const isRouteActive = (routeName) => {
@@ -78,6 +79,30 @@
             'admin.language.create',
             'admin.language.edit'
         ])
+    })
+
+    const showAccessMenu = computed(() => {
+        const permissions = page.props.auth?.permissions || []
+        return permissions.includes('manage_roles') || permissions.includes('manage_staff')
+    })
+    
+    // Computed properties for sidebar visibility
+    const showProductsMenu = computed(() => {
+        const permissions = page.props.auth?.permissions || []
+        const hasViewProducts = permissions.includes('view_products')
+        const hasViewCategories = permissions.includes('view_categories')
+        const hasViewBrands = permissions.includes('view_brands')
+        const hasViewAttributes = permissions.includes('view_attributes')
+        const hasAccess = hasViewProducts || hasViewCategories || hasViewBrands || hasViewAttributes
+        return hasAccess
+    })
+    const showReportsMenu = computed(() => {
+        const permissions = page.props.auth?.permissions || []
+        return permissions.includes('view_reports')
+    })
+    const showSettingsMenu = computed(() => {
+        const permissions = page.props.auth?.permissions || []
+        return permissions.includes('view_settings')
     })
 
     // Refs for collapse elements
@@ -138,6 +163,16 @@
         if (isSettingsCollapseActive.value && settingsCollapseElement.value) {
             openCollapse(settingsCollapseElement.value)
         }
+
+        // ========== تهيئة نظام التنبيهات للطلبات غير المرئية ==========
+        // تهيئة الصوت
+        initAudio()
+        
+        // إعداد معالج تغيير رؤية الصفحة
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        
+        // بدء التحقق من الطلبات غير المرئية
+        startPolling()
     })
 
     function changeLang(lang) {
@@ -151,6 +186,226 @@
             }
         });
     }
+
+    // ========== نظام التنبيهات للطلبات غير المرئية ==========
+    // متغيرات للتحقق من الطلبات غير المرئية (notification_seen = 0)
+    const hasUnseenOrders = ref(false)
+    const unseenOrdersCount = ref(0)
+    const lastUnseenCount = ref(0) // لتتبع آخر عدد للطلبات غير المرئية
+    const pollingInterval = ref(null)
+    const notificationAudio = ref(null)
+    const isPlayingSound = ref(false)
+    const isPageVisible = ref(true)
+    const alertShown = ref(false) // لتتبع إذا تم عرض التنبيه
+
+    // تهيئة الصوت
+    const initAudio = () => {
+        try {
+            notificationAudio.value = new Audio('/sound/notification.mp3')
+            notificationAudio.value.loop = true
+            notificationAudio.value.volume = 0.7
+        } catch (error) {
+            // Error initializing audio
+        }
+    }
+
+    // تشغيل الصوت
+    const playNotificationSound = () => {
+        if (notificationAudio.value && !isPlayingSound.value) {
+            isPlayingSound.value = true
+            const playPromise = notificationAudio.value.play()
+            
+            if (playPromise !== undefined) {
+                playPromise
+                    .catch(error => {
+                        isPlayingSound.value = false
+                    })
+            }
+        }
+    }
+
+    // إيقاف الصوت
+    const stopNotificationSound = () => {
+        if (notificationAudio.value && isPlayingSound.value) {
+            notificationAudio.value.pause()
+            notificationAudio.value.currentTime = 0
+            isPlayingSound.value = false
+        }
+    }
+
+    // تحديث حالة notification_seen للطلبات
+    const markOrdersAsSeen = async () => {
+        try {
+            const response = await axios.post(route('admin.orders.markAsSeen'))
+            
+            // تحديث الحالة المحلية
+            hasUnseenOrders.value = false
+            unseenOrdersCount.value = 0
+            lastUnseenCount.value = 0
+            alertShown.value = false
+            
+            // إيقاف الصوت
+            stopNotificationSound()
+            
+            // إغلاق أي تنبيه مفتوح
+            Swal.close()
+            
+            return response.data
+        } catch (error) {
+            return null
+        }
+    }
+
+    // التحقق من الطلبات غير المرئية (notification_seen = 0)
+    const checkForPendingOrders = async () => {
+        // لا تتحقق إذا كانت الصفحة غير مرئية
+        if (!isPageVisible.value) {
+            return
+        }
+        
+        try {
+            const url = route('admin.orders.checkPending')
+            const response = await axios.get(url)
+
+            if (response.data && response.data.has_unseen_orders) {
+                const unseenCount = response.data.unseen_count || 0
+                
+                // تحديث الحالة
+                hasUnseenOrders.value = true
+                unseenOrdersCount.value = unseenCount
+                
+                // عرض التنبيه إذا:
+                // 1. لم يتم عرضه من قبل (alertShown = false)
+                // 2. أو إذا زاد عدد الطلبات غير المرئية (طلب جديد)
+                const isNewOrder = lastUnseenCount.value === 0 && unseenCount > 0
+                const hasMoreOrders = unseenCount > lastUnseenCount.value && lastUnseenCount.value > 0
+                const shouldShowAlert = !alertShown.value || isNewOrder || hasMoreOrders
+                
+                if (shouldShowAlert) {
+                    alertShown.value = true
+                    lastUnseenCount.value = unseenCount
+                    
+                    // إغلاق أي تنبيه سابق إذا كان موجوداً
+                    Swal.close()
+                    
+                    Swal.fire({
+                        title: 'طلب جديد!',
+                        html: `
+                            <div style="text-align: right; direction: rtl;">
+                                <p style="font-size: 18px; margin-bottom: 15px;">يوجد طلبات جديدة تحتاج إلى مراجعة</p>
+                                <p style="font-size: 16px; color: #666;"><strong>إجمالي الطلبات الجديدة:</strong> ${unseenCount}</p>
+                            </div>
+                        `,
+                        icon: 'warning',
+                        confirmButtonText: 'عرض الطلبات',
+                        confirmButtonColor: '#3085d6',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didClose: () => {
+                            // لا نتوقف عن تشغيل الصوت عند إغلاق التنبيه
+                            // الصوت يستمر طالما يوجد unseen orders
+                        }
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            // تحديث حالة notification_seen
+                            await markOrdersAsSeen()
+                            // الانتقال إلى صفحة الطلبات
+                            router.visit(route('admin.orders.index'))
+                        }
+                    })
+                } else {
+                    // تحديث العدد فقط
+                    lastUnseenCount.value = unseenCount
+                }
+                
+                // تشغيل الصوت إذا لم يكن يعمل (يستمر طالما يوجد unseen orders)
+                if (!isPlayingSound.value) {
+                    playNotificationSound()
+                }
+            } else {
+                // تحديث الحالة
+                hasUnseenOrders.value = false
+                unseenOrdersCount.value = 0
+                lastUnseenCount.value = 0
+                alertShown.value = false
+                
+                // إيقاف الصوت إذا كان يعمل
+                if (isPlayingSound.value) {
+                    stopNotificationSound()
+                }
+            }
+        } catch (error) {
+            // Error checking for pending orders
+        }
+    }
+
+    // بدء التحقق الدوري من الطلبات غير المرئية
+    const startPolling = () => {
+        // التحقق كل 5 ثوان
+        if (!pollingInterval.value) {
+            console.log('🚀 Starting polling for unseen orders...')
+            pollingInterval.value = setInterval(() => {
+                checkForPendingOrders()
+            }, 5000)
+            // التحقق فوراً عند البدء
+            setTimeout(() => {
+                checkForPendingOrders()
+            }, 1000)
+        } else {
+            console.log('⚠️ Polling already started')
+        }
+    }
+
+    // إيقاف التحقق الدوري
+    const stopPolling = () => {
+        if (pollingInterval.value) {
+            clearInterval(pollingInterval.value)
+            pollingInterval.value = null
+        }
+    }
+
+    // معالجة تغيير رؤية الصفحة
+    const handleVisibilityChange = () => {
+        isPageVisible.value = !document.hidden
+        if (isPageVisible.value && !pollingInterval.value) {
+            startPolling()
+        }
+    }
+
+    // دالة اختبار يدوية (للتشخيص)
+    const testNotification = () => {
+        // اختبار الصوت
+        playNotificationSound()
+        
+        // اختبار التنبيه
+        Swal.fire({
+            title: 'اختبار النظام',
+            text: 'إذا رأيت هذا التنبيه، فالنظام يعمل بشكل صحيح',
+            icon: 'info',
+            confirmButtonText: 'حسناً'
+        })
+    }
+
+    // جعل دالة الاختبار متاحة عالمياً للتشخيص
+    if (typeof window !== 'undefined') {
+        window.testOrderNotification = testNotification
+        window.checkPendingOrders = checkForPendingOrders
+    }
+
+    // تنظيف عند إلغاء تحميل Layout
+    onUnmounted(() => {
+        stopPolling()
+        stopNotificationSound()
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        if (notificationAudio.value) {
+            notificationAudio.value = null
+        }
+        // تنظيف المتغيرات
+        hasUnseenOrders.value = false
+        unseenOrdersCount.value = 0
+        lastUnseenCount.value = 0
+        alertShown.value = false
+    })
 </script>
 <template>
     <!-- **************** MAIN CONTENT START **************** -->
@@ -179,40 +434,52 @@
                         <li class="nav-item ms-2 my-2">E-Commerce</li>
 
                         <!-- menu item 2 -->
-                        <li class="nav-item">
+                        <li v-if="showProductsMenu" class="nav-item">
                             <a class="nav-link" data-bs-toggle="collapse" href="#collapseproducts" role="button" :aria-expanded="isProductsCollapseActive" aria-controls="collapseproducts">
                                 <i class="bi bi-box fa-fw me-2"></i>{{ t('products') }}
                             </a>
                             <!-- Submenu -->
                             <ul ref="productsCollapseElement" class="nav collapse flex-column" :class="{ show: isProductsCollapseActive }" id="collapseproducts" data-bs-parent="#navbar-sidebar">
-                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.products.index') || isRouteActive('admin.products.create') || isRouteActive('admin.products.edit') }" :href="route('admin.products.index')">{{ t('all_products') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.products.import') }" :href="route('admin.products.import')"><i class="bi bi-upload me-2"></i>{{ t('import_products') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.categories.index') || isRouteActive('admin.categories.create') || isRouteActive('admin.categories.edit') }" :href="route('admin.categories.index')">{{ t('categories') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.brands.index') || isRouteActive('admin.brands.create') || isRouteActive('admin.brands.edit') }" :href="route('admin.brands.index')">{{ t('brands') }}</Link></li>
-                                <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.attributes.index') || isRouteActive('admin.attributes.create') || isRouteActive('admin.attributes.edit') }" :href="route('admin.attributes.index')">{{ t('specifications') }}</Link></li>
+                                <li v-if="page.props.auth?.permissions?.includes('view_products')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.products.index') || isRouteActive('admin.products.create') || isRouteActive('admin.products.edit') }" :href="route('admin.products.index')">{{ t('all_products') }}</Link></li>
+                                <li v-if="page.props.auth?.permissions?.includes('create_products')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.products.import') }" :href="route('admin.products.import')"><i class="bi bi-upload me-2"></i>{{ t('import_products') }}</Link></li>
+                                <li v-if="page.props.auth?.permissions?.includes('view_categories')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.categories.index') || isRouteActive('admin.categories.create') || isRouteActive('admin.categories.edit') }" :href="route('admin.categories.index')">{{ t('categories') }}</Link></li>
+                                <li v-if="page.props.auth?.permissions?.includes('view_brands')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.brands.index') || isRouteActive('admin.brands.create') || isRouteActive('admin.brands.edit') }" :href="route('admin.brands.index')">{{ t('brands') }}</Link></li>
+                                <li v-if="page.props.auth?.permissions?.includes('view_attributes')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.attributes.index') || isRouteActive('admin.attributes.create') || isRouteActive('admin.attributes.edit') }" :href="route('admin.attributes.index')">{{ t('specifications') }}</Link></li>
                             </ul>
                         </li>
 
                         <!-- Menu item 3 -->
-                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.orders.index') || isRouteActive('admin.orders.show') || isRouteActive('admin.orders.create') || isRouteActive('admin.orders.edit') }" :href="route('admin.orders.index')"><i class="fas fa-shopping-cart fa-fw me-2"></i>{{ t('orders') }}</Link></li>
+                        <li v-if="page.props.auth?.permissions?.includes('view_orders')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.orders.index') || isRouteActive('admin.orders.show') || isRouteActive('admin.orders.create') || isRouteActive('admin.orders.edit') }" :href="route('admin.orders.index')"><i class="fas fa-shopping-cart fa-fw me-2"></i>{{ t('orders') }}</Link></li>
 
                         <!-- Menu item 4 -->
-                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.sliders.index') || isRouteActive('admin.sliders.create') || isRouteActive('admin.sliders.edit') }" :href="route('admin.sliders.index')"><i class="fas fa-images fa-fw me-2"></i>{{ t('sliders') }}</Link></li>
+                        <li v-if="page.props.auth?.permissions?.includes('view_sliders')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.sliders.index') || isRouteActive('admin.sliders.create') || isRouteActive('admin.sliders.edit') }" :href="route('admin.sliders.index')"><i class="fas fa-images fa-fw me-2"></i>{{ t('sliders') }}</Link></li>
 
                         <!-- Title -->
-                        <li class="nav-item ms-2 my-2">{{ t('clients') }}</li>
+                        <li v-if="page.props.auth?.permissions?.includes('view_clients') || page.props.auth?.permissions?.includes('view_leads')" class="nav-item ms-2 my-2">{{ t('clients') }}</li>
 
                         <!-- Menu item 5 -->
-                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.clients.index') || isRouteActive('admin.clients.show') || isRouteActive('admin.clients.create') || isRouteActive('admin.clients.edit') }" :href="route('admin.clients.index')"><i class="fas fa-users fa-fw me-2"></i>{{ t('clients') }}</Link></li>
+                        <li v-if="page.props.auth?.permissions?.includes('view_clients')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.clients.index') || isRouteActive('admin.clients.show') || isRouteActive('admin.clients.create') || isRouteActive('admin.clients.edit') }" :href="route('admin.clients.index')"><i class="fas fa-users fa-fw me-2"></i>{{ t('clients') }}</Link></li>
 
                         <!-- Menu item 5.1 -->
-                        <li class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.leads.index') || isRouteActive('admin.leads.show') }" :href="route('admin.leads.index')"><i class="fas fa-user-plus fa-fw me-2"></i>طلبات التسجيل</Link></li>
+                        <li v-if="page.props.auth?.permissions?.includes('view_leads')" class="nav-item"> <Link class="nav-link" :class="{ active: isRouteActive('admin.leads.index') || isRouteActive('admin.leads.show') }" :href="route('admin.leads.index')"><i class="fas fa-user-plus fa-fw me-2"></i>طلبات التسجيل</Link></li>
+
+                        <li v-if="showAccessMenu" class="nav-item ms-2 my-2">الصلاحيات</li>
+                        <li v-if="page.props.auth?.permissions?.includes('manage_staff')" class="nav-item">
+                            <Link class="nav-link" :class="{ active: isAnyRouteActive(['admin.staff.index', 'admin.staff.create', 'admin.staff.edit']) }" :href="route('admin.staff.index')">
+                                <i class="bi bi-people fa-fw me-2"></i>الموظفون
+                            </Link>
+                        </li>
+                        <li v-if="page.props.auth?.permissions?.includes('manage_roles')" class="nav-item">
+                            <Link class="nav-link" :class="{ active: isAnyRouteActive(['admin.roles.index', 'admin.roles.create', 'admin.roles.edit']) }" :href="route('admin.roles.index')">
+                                <i class="bi bi-shield-lock fa-fw me-2"></i>الأدوار
+                            </Link>
+                        </li>
 
                         <!-- Title -->
-                        <li class="nav-item ms-2 my-2">{{ t('reports') }}</li>
+                        <li v-if="showReportsMenu" class="nav-item ms-2 my-2">{{ t('reports') }}</li>
 
                         <!-- Menu item 6 -->
-                        <li class="nav-item">
+                        <li v-if="showReportsMenu" class="nav-item">
                             <a class="nav-link" data-bs-toggle="collapse" href="#collapsereports" role="button" :aria-expanded="isReportsCollapseActive" aria-controls="collapsereports">
                                 <i class="far fa-chart-bar fa-fw me-2"></i>{{ t('reports') }}
                             </a>
@@ -228,10 +495,10 @@
                         </li>
 
                         <!-- Title -->
-                        <li class="nav-item ms-2 my-2">{{ t('settings') }}</li>
+                        <li v-if="showSettingsMenu" class="nav-item ms-2 my-2">{{ t('settings') }}</li>
 
                         <!-- Menu item 7 -->
-                        <li class="nav-item">
+                        <li v-if="showSettingsMenu" class="nav-item">
                             <a class="nav-link" data-bs-toggle="collapse" href="#collapsesettings" role="button" :aria-expanded="isSettingsCollapseActive" aria-controls="collapsesettings">
                                 <i class="fas fa-cog fa-fw me-2"></i>{{ t('settings') }}
                             </a>

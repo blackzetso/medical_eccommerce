@@ -42,7 +42,13 @@ class ProductController extends Controller
         }
 
         // If we can't parse it, try to extract /uploads/products/ from the string
-        if (preg_match('#(/uploads/products/[^?#]+)#', $url, $matches)) {
+        // Use a safer regex pattern that avoids issues with special characters
+        if (preg_match('|(/uploads/products/[^?#]+)|', $url, $matches)) {
+            return $matches[1];
+        }
+        
+        // Also check for /uploads/ in general (for other upload paths)
+        if (preg_match('|(/uploads/[^?#]+)|', $url, $matches)) {
             return $matches[1];
         }
 
@@ -88,26 +94,29 @@ class ProductController extends Controller
         if ($request->has('search') && $request->search) {
             $searchTerm = trim($request->search);
             
-            // Check if search term matches product_code exactly
-            $hasExactProductCode = Product::whereNotNull('product_code')
-                ->where('product_code', '=', $searchTerm)
-                ->exists();
+            // تقسيم مصطلح البحث إلى كلمات منفصلة
+            $searchWords = preg_split('/\s+/', $searchTerm, -1, PREG_SPLIT_NO_EMPTY);
             
-            // Check if search term matches sku exactly
-            $hasExactSku = Product::whereNotNull('sku')
-                ->where('sku', '=', $searchTerm)
-                ->exists();
-            
-            if ($hasExactProductCode) {
-                // Exact match for product_code only
-                $query->where('product_code', '=', $searchTerm);
-            } elseif ($hasExactSku) {
-                // Exact match for sku only
-                $query->where('sku', '=', $searchTerm);
-            } else {
-                // Partial match for name
-                $query->where('name', 'like', '%' . $searchTerm . '%');
-            }
+            $query->where(function($q) use ($searchWords, $searchTerm) {
+                // البحث في SKU أو كود المنتج (مطابقة كاملة أو جزئية)
+                $q->where(function($subQ) use ($searchTerm) {
+                    $subQ->where('sku', 'like', '%' . $searchTerm . '%')
+                         ->orWhere('product_code', 'like', '%' . $searchTerm . '%');
+                });
+                
+                // أو البحث في اسم المنتج (جميع الكلمات يجب أن تظهر في الاسم)
+                if (count($searchWords) > 0) {
+                    $q->orWhere(function($nameQ) use ($searchWords) {
+                        // كل كلمة من كلمات البحث يجب أن تظهر في الاسم (عربي أو إنجليزي)
+                        foreach ($searchWords as $word) {
+                            $nameQ->where(function($wordQ) use ($word) {
+                                $wordQ->where('name', 'like', '%' . $word . '%')
+                                      ->orWhere('name_en', 'like', '%' . $word . '%');
+                            });
+                        }
+                    });
+                }
+            });
         }
 
         $products = $query->orderBy('created_at', 'desc')->paginate(10);
@@ -128,6 +137,9 @@ class ProductController extends Controller
         $categories = Category::where('status', true)->get();
         $brands = Brand::where('status', true)->get();
 
+        // إضافة معايير البحث إلى pagination links
+        $products->appends($request->only(['search']));
+        
         return Inertia::render('Admin/theme1/Products/Index', [
             'products' => $products,
             'filters' => $request->only(['search']),
@@ -163,11 +175,13 @@ class ProductController extends Controller
             'slug' => 'required|string|max:255|unique:products',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string',
-            'price' => $request->input('price') ? 'required|numeric|min:0' : 'nullable',
+            'cost' => 'required|numeric|min:0',
+            'profit_margin' => 'required|numeric|min:0|max:1000',
+            'price' => 'nullable|numeric|min:0', // Will be calculated automatically
             'sale_price' => 'nullable|numeric|min:0',
             'discount_type' => $request->filled('discount_type') ? 'required|in:none,fixed,percentage' : 'nullable',
             'discount_value' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
+            'stock_quantity' => 'nullable|integer|min:0', // Only used if no attributes
             'manage_stock' => 'boolean',
             'sku' => 'nullable|string|max:255|unique:products',
             'product_code' => 'nullable|string|max:255',
@@ -186,6 +200,7 @@ class ProductController extends Controller
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.attribute_value_id' => 'required|exists:attribute_values,id',
             'attributes.*.price_adjustment' => 'nullable|numeric',
+            'attributes.*.stock_quantity' => 'nullable|integer|min:0',
             'colors' => 'nullable|array', // Validate colors as an optional array
         ]);
 
@@ -208,6 +223,11 @@ class ProductController extends Controller
         }
         $validated['images'] = $images;
 
+        // حساب السعر من التكلفة وهامش الربح
+        $cost = $validated['cost'];
+        $profitMargin = $validated['profit_margin'];
+        $validated['price'] = $cost * (1 + $profitMargin / 100);
+
         // حساب sale_price بناءً على نوع الخصم
         if (isset($validated['discount_type']) && $validated['discount_type'] !== 'none' && isset($validated['discount_value']) && $validated['discount_value'] > 0) {
             $price = $validated['price'];
@@ -223,6 +243,18 @@ class ProductController extends Controller
             $validated['sale_price'] = null;
         }
 
+        // إذا كان المنتج له خصائص، لا نحتاج stock_quantity على مستوى المنتج
+        $hasAttributes = $request->has('attributes') && is_array($request->input('attributes')) && count($request->input('attributes')) > 0;
+        if ($hasAttributes) {
+            // تجاهل stock_quantity على مستوى المنتج إذا كان هناك خصائص
+            $validated['stock_quantity'] = 0;
+        } else {
+            // إذا لم يكن هناك خصائص، stock_quantity مطلوب
+            if (!isset($validated['stock_quantity']) || $validated['stock_quantity'] === null) {
+                $validated['stock_quantity'] = 0;
+            }
+        }
+
         $product = Product::create($validated);
 
         // حفظ الألوان إذا تم تمريرها
@@ -236,7 +268,8 @@ class ProductController extends Controller
             foreach ($request->input('attributes') as $attribute) {
                 $product->attributes()->attach($attribute['attribute_id'], [
                     'attribute_value_id' => $attribute['attribute_value_id'],
-                    'price_adjustment' => $attribute['price_adjustment'] ?? 0
+                    'price_adjustment' => $attribute['price_adjustment'] ?? 0,
+                    'stock_quantity' => $attribute['stock_quantity'] ?? 0
                 ]);
             }
         }
@@ -274,7 +307,8 @@ class ProductController extends Controller
             $productAttributes[] = [
                 'attribute_id' => $attribute->id,
                 'attribute_value_id' => $attribute->pivot->attribute_value_id,
-                'price_adjustment' => $attribute->pivot->price_adjustment
+                'price_adjustment' => $attribute->pivot->price_adjustment,
+                'stock_quantity' => $attribute->pivot->stock_quantity ?? 0
             ];
         }
 
@@ -354,17 +388,20 @@ class ProductController extends Controller
         // استبدال request data
         $request->merge($requestData);
 
-        $validated = $request->validate([
+        try {
+            $validated = $request->validate([
             'name' => $request->input('name') ? 'required|string|max:255' : 'nullable',
             'name_en' => 'nullable|string|max:255',
             'slug' => $request->input('slug') ? 'required|string|max:255|unique:products,slug,' . $id : 'nullable',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string',
-            'price' => $request->input('price') ? 'required|numeric|min:0' : 'nullable',
+            'cost' => 'required|numeric|min:0',
+            'profit_margin' => 'required|numeric|min:0|max:1000',
+            'price' => 'nullable|numeric|min:0', // Will be calculated automatically
             'sale_price' => 'nullable|numeric|min:0',
             'discount_type' => $request->filled('discount_type') ? 'required|in:none,fixed,percentage' : 'nullable',
             'discount_value' => 'nullable|numeric|min:0',
-            'stock_quantity' => $request->input('stock_quantity') ? 'required|integer|min:0' : 'nullable',
+            'stock_quantity' => 'nullable|integer|min:0', // Only used if no attributes
             'manage_stock' => 'boolean',
             'sku' => 'nullable|string|max:255|unique:products,sku,' . $id,
             'product_code' => 'nullable|string|max:255',
@@ -378,21 +415,25 @@ class ProductController extends Controller
             'meta_description' => 'nullable|string',
             'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'existing_main_image' => 'nullable|string',
-            'existing_images' => 'array',
-            'images' => $request->hasFile('images') ? 'required|array|min:1' : 'nullable|array', // Accept existing images if no new images are uploaded
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'existing_images' => 'nullable|array',
+            'images' => 'nullable|array', // Accept existing images if no new images are uploaded
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'attributes' => 'nullable|array',
-            'attributes.*.attribute_id' => 'required|exists:attributes,id',
-            'attributes.*.attribute_value_id' => 'required|exists:attribute_values,id',
+            'attributes.*.attribute_id' => 'required_with:attributes|exists:attributes,id',
+            'attributes.*.attribute_value_id' => 'required_with:attributes|exists:attribute_values,id',
             'attributes.*.price_adjustment' => 'nullable|numeric',
+            'attributes.*.stock_quantity' => 'nullable|integer|min:0',
             'colors' => 'nullable|array', // Validate colors as an optional array
         ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
 
         // معالجة الصورة الرئيسية ورفعها إلى public/uploads/products
         if ($request->hasFile('main_image')) {
             // حذف الصورة الرئيسية القديمة إذا كانت موجودة
             if ($product->main_image && file_exists(public_path($product->main_image))) {
-                unlink(public_path($product->main_image));
+                @unlink(public_path($product->main_image));
             }
             
             $mainImage = $request->file('main_image');
@@ -401,7 +442,14 @@ class ProductController extends Controller
             $validated['main_image'] = '/uploads/products/' . $mainImageFilename;
         } else {
             // الاحتفاظ بالصورة الرئيسية الحالية إذا لم يتم رفع صورة جديدة
-            $validated['main_image'] = $validated['existing_main_image'] ?? $product->main_image;
+            if (!empty($validated['existing_main_image'])) {
+                $convertedMain = $this->convertUrlToRelativePath($validated['existing_main_image']);
+                $validated['main_image'] = $convertedMain ?? $validated['existing_main_image'];
+            } elseif (!empty($product->main_image)) {
+                $validated['main_image'] = $product->main_image;
+            } else {
+                $validated['main_image'] = null;
+            }
         }
 
         // معالجة الصور الإضافية - الحصول على الصور الحالية المتبقية
@@ -433,9 +481,14 @@ class ProductController extends Controller
             // تحويل الروابط الكاملة إلى مسارات نسبية
             $convertedImages = [];
             foreach ($existingImages as $imageUrl) {
-                $relativePath = $this->convertUrlToRelativePath($imageUrl);
-                if ($relativePath !== null) {
-                    $convertedImages[] = $relativePath;
+                if (!empty($imageUrl)) {
+                    $relativePath = $this->convertUrlToRelativePath($imageUrl);
+                    if ($relativePath !== null) {
+                        $convertedImages[] = $relativePath;
+                    } elseif (strpos($imageUrl, '/uploads/') === 0) {
+                        // إذا كان المسار نسبي بالفعل، استخدمه كما هو
+                        $convertedImages[] = $imageUrl;
+                    }
                 }
             }
             $existingImages = $convertedImages;
@@ -445,12 +498,12 @@ class ProductController extends Controller
             // تحويل الروابط الكاملة إلى مسارات نسبية (في حالة كانت روابط كاملة)
             $convertedImages = [];
             foreach ($product->images as $imageUrl) {
-                $relativePath = $this->convertUrlToRelativePath($imageUrl);
-                if ($relativePath !== null) {
-                    $convertedImages[] = $relativePath;
-                } else {
-                    // إذا كان المسار نسبي بالفعل، استخدمه كما هو
-                    if (strpos($imageUrl, '/uploads/') === 0) {
+                if (!empty($imageUrl)) {
+                    $relativePath = $this->convertUrlToRelativePath($imageUrl);
+                    if ($relativePath !== null) {
+                        $convertedImages[] = $relativePath;
+                    } elseif (strpos($imageUrl, '/uploads/') === 0) {
+                        // إذا كان المسار نسبي بالفعل، استخدمه كما هو
                         $convertedImages[] = $imageUrl;
                     }
                 }
@@ -461,18 +514,27 @@ class ProductController extends Controller
         // إضافة الصور الجديدة المرفوعة
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $filename = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
-                $image->move(public_path('uploads/products'), $filename);
-                $existingImages[] = '/uploads/products/' . $filename;
+                if ($image && $image->isValid()) {
+                    $filename = uniqid() . '_' . time() . '.' . $image->getClientOriginalExtension();
+                    $image->move(public_path('uploads/products'), $filename);
+                    $existingImages[] = '/uploads/products/' . $filename;
+                }
             }
         }
 
         // حفظ الصور النهائية (الحالية المتبقية + الجديدة)
         $validated['images'] = $existingImages;
 
+        // حساب السعر من التكلفة وهامش الربح
+        if (isset($validated['cost']) && isset($validated['profit_margin'])) {
+            $cost = $validated['cost'];
+            $profitMargin = $validated['profit_margin'];
+            $validated['price'] = $cost * (1 + $profitMargin / 100);
+        }
+
         // حساب sale_price بناءً على نوع الخصم
         if (isset($validated['discount_type']) && $validated['discount_type'] !== 'none' && isset($validated['discount_value']) && $validated['discount_value'] > 0) {
-            $price = $validated['price'];
+            $price = $validated['price'] ?? 0;
             $discountValue = $validated['discount_value'];
 
             if ($validated['discount_type'] === 'fixed') {
@@ -485,7 +547,23 @@ class ProductController extends Controller
             $validated['sale_price'] = null;
         }
 
-        $product->update($validated);
+        // إذا كان المنتج له خصائص، لا نحتاج stock_quantity على مستوى المنتج
+        $hasAttributes = $request->has('attributes') && is_array($request->input('attributes')) && count($request->input('attributes')) > 0;
+        if ($hasAttributes) {
+            // تجاهل stock_quantity على مستوى المنتج إذا كان هناك خصائص
+            $validated['stock_quantity'] = 0;
+        } else {
+            // إذا لم يكن هناك خصائص، stock_quantity مطلوب
+            if (!isset($validated['stock_quantity']) || $validated['stock_quantity'] === null) {
+                $validated['stock_quantity'] = 0;
+            }
+        }
+
+        try {
+            $product->update($validated);
+        } catch (\Exception $e) {
+            throw $e;
+        }
 
         // تحديث الخصائص
         $product->attributes()->detach(); // حذف الخصائص القديمة
@@ -494,7 +572,8 @@ class ProductController extends Controller
             foreach ($request->input('attributes') as $attribute) {
                 $product->attributes()->attach($attribute['attribute_id'], [
                     'attribute_value_id' => $attribute['attribute_value_id'],
-                    'price_adjustment' => $attribute['price_adjustment'] ?? 0
+                    'price_adjustment' => $attribute['price_adjustment'] ?? 0,
+                    'stock_quantity' => $attribute['stock_quantity'] ?? 0
                 ]);
             }
         }
@@ -541,6 +620,28 @@ class ProductController extends Controller
         $product->update(['status' => !$product->status]);
 
         return redirect()->back()->with('success', 'تم تعديل حالة المنتج');
+    }
+
+    /**
+     * Add stock quantity to product
+     */
+    public function addStockQuantity(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $product = Product::findOrFail($id);
+        
+        // إضافة الكمية الجديدة للكمية الحالية
+        $product->stock_quantity = ($product->stock_quantity ?? 0) + $validated['quantity'];
+        
+        // تحديث حالة التوفر
+        $product->in_stock = $product->stock_quantity > 0;
+        
+        $product->save();
+
+        return redirect()->back()->with('success', 'تم إضافة الكمية بنجاح');
     }
 
     /**

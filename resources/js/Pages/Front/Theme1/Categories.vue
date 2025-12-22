@@ -6,7 +6,10 @@ import { route } from 'ziggy-js'
 const props = defineProps({
     sliders: Array,
     childrens: Object,
-    parent: Object,
+    parent: {
+        type: Object,
+        default: null
+    },
 })
 </script>
 
@@ -17,9 +20,14 @@ const props = defineProps({
             <nav aria-label="breadcrumb" class="breadcrumb-nav">
                 <div class="container">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="demo3.html">الرئيسية</a></li>
-                        <li class="breadcrumb-item"><a href="#">قسم رئسسي</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">قسم فرعى</li>
+                        <li class="breadcrumb-item"><Link :href="route('/')">الرئيسية</Link></li>
+                        <template v-if="parent">
+                            <li class="breadcrumb-item"><Link :href="route('web.category', parent.id)">قسم رئسسي</Link></li>
+                            <li class="breadcrumb-item active" aria-current="page">{{ parent.name }}</li>
+                        </template>
+                        <template v-else>
+                            <li class="breadcrumb-item active" aria-current="page">الأقسام</li>
+                        </template>
                     </ol>
                 </div><!-- End .container -->
             </nav>

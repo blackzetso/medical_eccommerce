@@ -48,7 +48,42 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        return array_merge(parent::share($request), [
+        $shared = parent::share($request);
+
+        return array_merge($shared, [
+            'auth' => array_merge($shared['auth'] ?? [], [
+                'user' => function () use ($request) {
+                    if ($request->user()) {
+                        return [
+                            'id' => $request->user()->id,
+                            'name' => $request->user()->name,
+                            'email' => $request->user()->email,
+                            'user_type' => $request->user()->user_type ?? 'client',
+                        ];
+                    }
+                    return null;
+                },
+                'roles' => function () use ($request) {
+                    if (!$request->user()) {
+                        return [];
+                    }
+                    $roles = $request->user()->getRoleNames();
+                    return $roles ? $roles->toArray() : [];
+                },
+                'permissions' => function () use ($request) {
+                    if (!$request->user()) {
+                        return [];
+                    }
+                    try {
+                        $permissions = $request->user()->getAllPermissions();
+                        $permissionNames = $permissions->pluck('name');
+                        return $permissionNames ? $permissionNames->toArray() : [];
+                    } catch (\Exception $e) {
+                        \Log::error('Error getting permissions: ' . $e->getMessage());
+                        return [];
+                    }
+                },
+            ]),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

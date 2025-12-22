@@ -22,9 +22,18 @@ class ClientAuthController extends Controller
         // تحقق من بيانات الدخول
         $credentials = $request->only('email', 'password');
         if (Auth::guard('web')->attempt($credentials)) {
+            $request->session()->regenerate();
             return redirect()->intended(route('/'));
         }
         return back()->withErrors(['email' => 'بيانات الدخول غير صحيحة']);
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect()->route('/');
     }
 
     public function showRegisterForm()

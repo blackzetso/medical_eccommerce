@@ -9,6 +9,7 @@ import { toast } from 'vue3-toastify'
 import { useTranslations } from '@/composables/translations'
 
 const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 const { t } = useTranslations()
 
 const props = defineProps({
@@ -18,15 +19,8 @@ const props = defineProps({
   brands: Array
 })
 
-// Debug: Log props when component mounts
 onMounted(() => {
-  console.log('=== COMPONENT MOUNTED ===')
-  console.log('Props products:', props.products)
-  console.log('Products data:', props.products.data)
-  if (props.products.data && props.products.data.length > 0) {
-    console.log('First product:', props.products.data[0])
-    console.log('First product images:', props.products.data[0].images)
-  }
+  // Component mounted
 })
 
 // ✅ حذف منتج
@@ -72,20 +66,30 @@ function toggleStatus(id) {
   })
 }
 
-// ✅ البحث
+// ✅ البحث مع debounce
 const search = ref(props.filters?.search ?? '')
+let searchTimeout = null
+
 watch(search, (value) => {
-  if (value) {
-    router.get(route('admin.products.index'), { search: value }, {
-      preserveState: true,
-      replace: true,
-    })
-  } else {
-    router.get(route('admin.products.index'), {}, {
-      preserveState: true,
-      replace: true,
-    })
+  // مسح timeout السابق
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
   }
+  
+  // إنتظار 500ms قبل البحث
+  searchTimeout = setTimeout(() => {
+    if (value && value.trim()) {
+      router.get(route('admin.products.index'), { search: value.trim() }, {
+        preserveState: true,
+        replace: true,
+      })
+    } else {
+      router.get(route('admin.products.index'), {}, {
+        preserveState: true,
+        replace: true,
+      })
+    }
+  }, 500)
 })
 
 // ✅ عرض الصورة الافتراضية
@@ -123,6 +127,56 @@ function renderStars(rating) {
   }
   return stars.join('')
 }
+
+// ✅ إضافة معايير البحث إلى روابط pagination
+function addSearchToUrl(url) {
+  if (!search.value || !url) return url
+  
+  const urlObj = new URL(url, window.location.origin)
+  urlObj.searchParams.set('search', search.value)
+  return urlObj.toString()
+}
+
+// ✅ إضافة كمية للمنتج
+const loadingStocks = ref({})
+function handleAddStock(productId, event) {
+  const quantity = parseInt(event.target.value)
+  
+  // التحقق من أن الكمية صحيحة
+  if (!quantity || quantity <= 0 || isNaN(quantity)) {
+    event.target.value = ''
+    return
+  }
+
+  // منع الإرسال المتكرر
+  if (loadingStocks.value[productId]) {
+    return
+  }
+
+  loadingStocks.value[productId] = true
+
+  router.patch(route('admin.products.addStock', productId), {
+    quantity: quantity
+  }, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      event.target.value = ''
+      toast.success(t('stock_quantity_added_successfully') || 'تم إضافة الكمية بنجاح', {
+        position: "top-right",
+        autoClose: 3000,
+      })
+      loadingStocks.value[productId] = false
+    },
+    onError: (errors) => {
+      toast.error(errors.quantity?.[0] || t('operation_failed') || 'فشلت العملية', {
+        position: "top-right",
+        autoClose: 3000,
+      })
+      loadingStocks.value[productId] = false
+    }
+  })
+}
 </script>
 
 <template>
@@ -143,10 +197,10 @@ function renderStars(rating) {
           />
         </div>
         <div class="col-4 text-center d-flex gap-2 justify-content-end">
-          <Link :href="route('admin.products.import')" class="btn btn-info-soft btn-round" :title="t('import_products')">
+          <Link v-if="can('create_products')" :href="route('admin.products.import')" class="btn btn-info-soft btn-round" :title="t('import_products')">
             <i class="bi bi-upload"></i>
           </Link>
-          <Link :href="route('admin.products.create')" class="btn btn-success-soft btn-round" :title="t('add_product')">
+          <Link v-if="can('create_products')" :href="route('admin.products.create')" class="btn btn-success-soft btn-round" :title="t('add_product')">
             <i class="bi bi-plus"></i>
           </Link>
         </div>
@@ -163,6 +217,7 @@ function renderStars(rating) {
                 <th>{{ t('product_name') }}</th>
                 <th>{{ t('price') }}</th>
                 <th>{{ t('stock') }}</th>
+                <th>إضافة كمية</th>
                 <th>{{ t('categories') }}</th>
                 <th>{{ t('brands') }}</th>
                 <th>{{ t('is_featured') }}</th>
@@ -237,6 +292,18 @@ function renderStars(rating) {
                   </div>
                 </td>
 
+                <!-- إضافة كمية -->
+                <td>
+                  <input
+                    type="number"
+                    class="form-control form-control-sm"
+                    :placeholder="'إضافة كمية'"
+                    min="1"
+                    @blur="handleAddStock(product.id, $event)"
+                    style="width: 100px; margin: 0 auto;"
+                  />
+                </td>
+
                 <!-- القسم -->
                 <td>
                   <span v-if="product.category">{{ product.category.name }}</span>
@@ -274,12 +341,14 @@ function renderStars(rating) {
                 <!-- الإجراءات -->
                 <td>
                   <Link
+                    v-if="can('update_products')"
                     :href="route('admin.products.edit', product.id)"
                     class="btn btn-success-soft btn-round me-1"
                   >
                     <i class="bi bi-pencil-square"></i>
                   </Link>
                   <button
+                    v-if="can('delete_products')"
                     class="btn btn-danger-soft btn-round"
                     @click="confirmDelete(product.id)"
                   >
@@ -290,7 +359,7 @@ function renderStars(rating) {
 
               <!-- لما مفيش بيانات -->
               <tr v-if="!props.products.data.length" class="text-center">
-                <td colspan="10" class="text-center py-4">
+                <td colspan="11" class="text-center py-4">
                   <i class="bi bi-inbox text-muted fs-4 d-block mb-2"></i>
                   <span class="text-muted">{{ t('no_data_available') }}</span>
                 </td>
@@ -316,7 +385,7 @@ function renderStars(rating) {
                   class="page-item mb-0"
                   :class="{ active: link.active, disabled: !link.url }"
                 >
-                  <Link v-if="link.url" class="page-link" :href="link.url">
+                  <Link v-if="link.url" class="page-link" :href="addSearchToUrl(link.url)">
                     <template v-if="link.label.includes('Previous')">
                       <i class="bi bi-chevron-left"></i>
                     </template>

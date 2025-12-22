@@ -44,6 +44,7 @@ class SliderController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'link' => 'nullable|url|max:255',
@@ -64,7 +65,6 @@ class SliderController extends Controller
             
             $image->move($uploadPath, $imageName);
             $validated['image'] = '/uploads/sliders/' . $imageName;
-            Log::info('Stored slider image at: ' . $validated['image']);
         }
 
         Slider::create($validated);
@@ -101,6 +101,7 @@ class SliderController extends Controller
         $slider = Slider::findOrFail($id);
 
         $validated = $request->validate([
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'link' => 'nullable|url|max:255',
@@ -125,7 +126,6 @@ class SliderController extends Controller
                 
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
-                    Log::info('Deleted old slider image: ' . $fullPath);
                 }
             }
 
@@ -141,7 +141,9 @@ class SliderController extends Controller
             
             $image->move($uploadPath, $imageName);
             $validated['image'] = '/uploads/sliders/' . $imageName;
-            Log::info('Stored new slider image at: ' . $validated['image']);
+        } else {
+            // لا تعدل مسار الصورة إذا لم تُرفع صورة جديدة
+            unset($validated['image']);
         }
 
         $slider->update($validated);
@@ -173,7 +175,6 @@ class SliderController extends Controller
             
             if (file_exists($fullPath)) {
                 unlink($fullPath);
-                Log::info('Deleted slider image: ' . $fullPath);
             }
         }
         

@@ -76,6 +76,7 @@ class ClientAccountController extends Controller
             'user_id' => $userId,
             'order_number' => $orderNumber,
             'status' => 'pending',
+            'notification_seen' => 0, // طلب جديد غير مرئي
             'subtotal' => $total,
             'tax_amount' => $taxAmount,
             'shipping_amount' => $shippingAmount,
@@ -110,14 +111,26 @@ class ClientAccountController extends Controller
             if ($item->product->manage_stock) {
                 $product = Product::find($item->product_id);
                 if ($product) {
-                    $product->stock_quantity = max(0, $product->stock_quantity - $item->quantity);
+                    // قراءة حقل attributes من الكارت
+                    $cartAttributes = $item->getAttribute('attributes');
                     
-                    // تحديث in_stock بناءً على الكمية المتبقية
-                    if ($product->stock_quantity <= 0) {
-                        $product->in_stock = false;
+                    // إذا كان المنتج له خصائص وتم تحديدها، خصم من مخزون الخصائص
+                    if ($product->hasAttributes() && !empty($cartAttributes) && is_array($cartAttributes)) {
+                        // خصم المخزون من كل خاصية محددة
+                        foreach ($cartAttributes as $attrId => $attrValueId) {
+                            $product->deductAttributeStock($attrId, $attrValueId, $item->quantity);
+                        }
+                    } else {
+                        // إذا لم يكن للمنتج خصائص، خصم من مخزون المنتج
+                        $product->stock_quantity = max(0, $product->stock_quantity - $item->quantity);
+                        
+                        // تحديث in_stock بناءً على الكمية المتبقية
+                        if ($product->stock_quantity <= 0) {
+                            $product->in_stock = false;
+                        }
+                        
+                        $product->save();
                     }
-                    
-                    $product->save();
                 }
             }
         }
@@ -154,23 +167,47 @@ class ClientAccountController extends Controller
 
         // التحقق من المخزون إذا كان المنتج يدير المخزون
         if ($product->manage_stock) {
-            if ($product->stock_quantity <= 0) {
+            // قراءة حقل attributes من الكارت
+            $cartAttributes = $cartItem->getAttribute('attributes');
+            $availableStock = null;
+            
+            // إذا كان المنتج له خصائص وتم تحديدها، استخدم مخزون الخصائص
+            if ($product->hasAttributes() && !empty($cartAttributes) && is_array($cartAttributes)) {
+                // الحصول على أقل مخزون من الخصائص المحددة
+                $stocks = [];
+                foreach ($cartAttributes as $attrId => $attrValueId) {
+                    $stock = $product->getAttributeStock($attrId, $attrValueId);
+                    $stocks[] = $stock;
+                }
+                
+                if (!empty($stocks)) {
+                    $availableStock = min($stocks);
+                } else {
+                    $availableStock = 0;
+                }
+            } else {
+                // إذا لم يكن للمنتج خصائص، استخدم مخزون المنتج
+                $availableStock = $product->stock_quantity ?? 0;
+                
+                // تحديث in_stock ليتوافق مع stock_quantity
+                if ($availableStock > 0 && !$product->in_stock) {
+                    $product->in_stock = true;
+                    $product->save();
+                }
+            }
+            
+            // التحقق من توفر المخزون
+            if ($availableStock <= 0) {
                 return redirect()->back()->withErrors([
                     'message' => 'المنتج غير متوفر في المخزون'
                 ]);
             }
             
-            // تحديث in_stock ليتوافق مع stock_quantity
-            if ($product->stock_quantity > 0 && !$product->in_stock) {
-                $product->in_stock = true;
-                $product->save();
-            }
-            
             // حساب الكمية الإجمالية المطلوبة (الكمية الجديدة - الكمية القديمة + الكمية القديمة في السلة)
             // نحتاج للتحقق من أن الكمية الجديدة لا تتجاوز المخزون المتاح
-            if ($quantity > $product->stock_quantity) {
+            if ($quantity > $availableStock) {
                 return redirect()->back()->withErrors([
-                    'message' => 'الكمية المطلوبة (' . $quantity . ') تتجاوز المخزون المتاح (' . $product->stock_quantity . ')'
+                    'message' => 'الكمية المطلوبة (' . $quantity . ') تتجاوز المخزون المتاح (' . $availableStock . ')'
                 ]);
             }
         }
@@ -395,36 +432,6 @@ class ClientAccountController extends Controller
             ]);
         }
 
-        // التحقق من المخزون
-        if ($product->manage_stock) {
-            // الاعتماد على stock_quantity كأساس
-            if ($product->stock_quantity <= 0) {
-                return redirect()->back()->withErrors([
-                    'message' => 'المنتج غير متوفر في المخزون'
-                ]);
-            }
-            
-            // تحديث in_stock ليتوافق مع stock_quantity
-            if ($product->stock_quantity > 0 && !$product->in_stock) {
-                $product->in_stock = true;
-                $product->save();
-            }
-            
-            // التحقق من أن الكمية المطلوبة متوفرة
-            $cartItem = \App\Models\Cart::where('user_id', $userId)
-                ->where('product_id', $productId)
-                ->first();
-            
-            $currentCartQuantity = $cartItem ? $cartItem->quantity : 0;
-            $totalRequestedQuantity = $currentCartQuantity + $quantity;
-            
-            if ($totalRequestedQuantity > $product->stock_quantity) {
-                return redirect()->back()->withErrors([
-                    'message' => 'الكمية المطلوبة غير متوفرة. الكمية المتاحة: ' . $product->stock_quantity
-                ]);
-            }
-        }
-
         // جلب الخصائص المطلوبة للمنتج من pivot table
         $productAttributes = DB::table('product_attributes')
             ->where('product_id', $productId)
@@ -433,8 +440,10 @@ class ClientAccountController extends Controller
             ->distinct()
             ->get();
 
+        $hasAttributes = $productAttributes->count() > 0;
+
         // التحقق من الخصائص إذا كان المنتج يحتوي على خصائص
-        if ($productAttributes->count() > 0) {
+        if ($hasAttributes) {
             $productAttributeIds = $productAttributes->pluck('attribute_id')->toArray();
             
             // التحقق من أن جميع الخصائص محددة
@@ -444,6 +453,52 @@ class ClientAccountController extends Controller
                         'message' => 'يرجى تحديد جميع الخصائص المطلوبة'
                     ]);
                 }
+            }
+        }
+
+        // التحقق من المخزون
+        if ($product->manage_stock) {
+            $availableStock = null;
+            
+            // إذا كان المنتج له خصائص، استخدم مخزون الخصائص
+            if ($hasAttributes && !empty($attributes)) {
+                // الحصول على أقل مخزون من الخصائص المحددة
+                $stocks = [];
+                foreach ($attributes as $attrId => $attrValueId) {
+                    $stock = $product->getAttributeStock($attrId, $attrValueId);
+                    $stocks[] = $stock;
+                }
+                
+                if (!empty($stocks)) {
+                    $availableStock = min($stocks);
+                } else {
+                    $availableStock = 0;
+                }
+            } else {
+                // إذا لم يكن للمنتج خصائص، استخدم مخزون المنتج
+                $availableStock = $product->stock_quantity ?? 0;
+            }
+            
+            // التحقق من توفر المخزون
+            if ($availableStock <= 0) {
+                return redirect()->back()->withErrors([
+                    'message' => 'المنتج غير متوفر في المخزون'
+                ]);
+            }
+            
+            // التحقق من أن الكمية المطلوبة متوفرة
+            $cartItem = \App\Models\Cart::where('user_id', $userId)
+                ->where('product_id', $productId)
+                ->where('attributes', json_encode($attributes))
+                ->first();
+            
+            $currentCartQuantity = $cartItem ? $cartItem->quantity : 0;
+            $totalRequestedQuantity = $currentCartQuantity + $quantity;
+            
+            if ($totalRequestedQuantity > $availableStock) {
+                return redirect()->back()->withErrors([
+                    'message' => 'الكمية المطلوبة غير متوفرة. الكمية المتاحة: ' . $availableStock
+                ]);
             }
         }
 

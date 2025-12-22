@@ -9,10 +9,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     use HasApiTokens;
+    use HasRoles;
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
@@ -33,6 +35,11 @@ class User extends Authenticatable
         'user_type',
         'location_url',
     ];
+
+    /**
+     * Guard name used by spatie/permission.
+     */
+    protected string $guard_name = 'web';
 
     /**
      * The attributes that should be hidden for serialization.

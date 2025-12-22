@@ -54,7 +54,23 @@
             border-radius: 5px;
             margin-bottom: 20px;
         }
-        .migrate-btn {
+        .section-title {
+            color: #4ec9b0;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3c3c3c;
+        }
+        .buttons-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .buttons-group:last-child {
+            margin-bottom: 0;
+        }
+        .migrate-btn, .seed-btn {
             background: #4ec9b0;
             color: #1e1e1e;
             border: none;
@@ -69,7 +85,13 @@
         .migrate-btn:hover {
             background: #3da89c;
         }
-        .migrate-btn:disabled {
+        .seed-btn {
+            background: #569cd6;
+        }
+        .seed-btn:hover {
+            background: #4a8bc2;
+        }
+        .migrate-btn:disabled, .seed-btn:disabled {
             background: #555;
             cursor: not-allowed;
         }
@@ -166,14 +188,30 @@
         </div>
 
         <div class="controls">
-            <button id="migrateBtn" class="migrate-btn" onclick="runMigrate()">
-                ▶️ تنفيذ Migrate
-            </button>
+            <!-- Migrate Section -->
+            <div>
+                <h2 class="section-title">📦 Migrations</h2>
+                <div class="buttons-group">
+                    <button id="migrateBtn" class="migrate-btn" onclick="runMigrate()">
+                        ▶️ تنفيذ Migrate
+                    </button>
+                </div>
+            </div>
+
+            <!-- Seeders Section -->
+            <div style="margin-top: 30px;">
+                <h2 class="section-title">🌱 Seeders</h2>
+                <div class="buttons-group">
+                    <button id="permissionsSeedBtn" class="seed-btn" onclick="runPermissionsSeed()">
+                        🔐 Seed الصلاحيات والرولز
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>جاري تنفيذ migrate...</p>
+            <p id="loadingText">جاري التنفيذ...</p>
         </div>
 
         <div class="output-container">
@@ -219,8 +257,10 @@
         async function runMigrate() {
             const btn = document.getElementById('migrateBtn');
             const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
             
             btn.disabled = true;
+            loadingText.textContent = 'جاري تنفيذ migrate...';
             loading.classList.add('active');
             clearOutput();
 
@@ -267,6 +307,73 @@
                         showTables(data.tables);
                     } else {
                         addOutputLine('جميع migrations محدثة بالفعل', 'info');
+                    }
+                } else {
+                    addOutputLine('حدث خطأ أثناء التنفيذ:', 'error');
+                    addOutputLine(data.error || 'خطأ غير معروف', 'error');
+                    if (data.output) {
+                        addOutputLine(data.output, 'error');
+                    }
+                }
+            } catch (error) {
+                addOutputLine('حدث خطأ في الاتصال:', 'error');
+                addOutputLine(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('active');
+            }
+        }
+
+        async function runPermissionsSeed() {
+            const btn = document.getElementById('permissionsSeedBtn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+            
+            btn.disabled = true;
+            loadingText.textContent = 'جاري تنفيذ seed للصلاحيات والرولز...';
+            loading.classList.add('active');
+            clearOutput();
+
+            addOutputLine('بدء تنفيذ seed للصلاحيات والرولز...', 'info');
+            addOutputLine('─────────────────────────────────────', 'info');
+
+            try {
+                const response = await fetch('{{ route("migrate.seed") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // عرض output
+                    if (data.output) {
+                        const lines = data.output.split('\n');
+                        lines.forEach(line => {
+                            if (line.trim()) {
+                                addOutputLine(line, 'success');
+                            }
+                        });
+                    }
+
+                    addOutputLine('─────────────────────────────────────', 'info');
+                    addOutputLine(data.message || 'تم التنفيذ بنجاح', 'success');
+                    
+                    if (data.permissions_count !== undefined) {
+                        addOutputLine(`\nالصلاحيات: ${data.permissions_count}`, 'info');
+                        if (data.permissions_added > 0) {
+                            addOutputLine(`تم إضافة ${data.permissions_added} صلاحية جديدة`, 'success');
+                        }
+                    }
+                    
+                    if (data.roles_count !== undefined) {
+                        addOutputLine(`الأدوار: ${data.roles_count}`, 'info');
+                        if (data.roles_added > 0) {
+                            addOutputLine(`تم إضافة ${data.roles_added} دور جديد`, 'success');
+                        }
                     }
                 } else {
                     addOutputLine('حدث خطأ أثناء التنفيذ:', 'error');

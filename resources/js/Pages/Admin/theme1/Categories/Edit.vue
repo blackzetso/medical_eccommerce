@@ -32,7 +32,12 @@ function handleImageChange(event) {
 }
 
 function submit() {
-  form.post(route('admin.categories.update', props.category.id), {
+  form
+    .transform((data) => ({
+      ...data,
+      _method: 'put'
+    }))
+    .post(route('admin.categories.update', props.category.id), {
     forceFormData: true,
     onSuccess: () => {
       Swal.fire({

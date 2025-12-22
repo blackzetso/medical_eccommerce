@@ -122,12 +122,16 @@
                 </ul>
 
                 <ul class="mobile-menu">
-                    <li><a href="login.html">{{ t('my_account') }}</a></li>
-                    <li><a href="demo3-contact.html">{{ t('contact_us') }}</a></li>
-                    <li><a href="blog.html">{{ t('blog') }}</a></li>
-                    <li><a href="wishlist.html">{{ t('my_wishlist') }}</a></li>
-                    <li><a href="cart.html">{{ t('cart') }}</a></li>
-                    <li><a href="login.html" class="login-link">{{ t('login') }}</a></li>
+                    <template v-if="isAuthenticated">
+                        <li><Link :href="route('client.dashboard')">{{ t('my_account') }}</Link></li>
+                        <li><Link :href="route('client.favorites')">{{ t('my_wishlist') }}</Link></li>
+                        <li><Link :href="route('client.cart')">{{ t('cart') }}</Link></li>
+                    </template>
+                    <template v-else>
+                        <li><Link :href="route('client.login')" class="login-link">{{ t('login') }}</Link></li>
+                        <li><Link :href="route('client.register')">{{ t('register') }}</Link></li>
+                    </template>
+                    <li><Link :href="route('web.contact')">{{ t('contact_us') }}</Link></li>
                 </ul>
             </nav><!-- End .mobile-nav -->
 
@@ -149,10 +153,15 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
+import { route } from 'ziggy-js'
 import { useTranslations } from '@/composables/translations'
 
 const { t } = useTranslations()
+const page = usePage()
+const user = computed(() => page.props.auth?.user)
+const isAuthenticated = computed(() => !!(user.value && user.value.id))
 
 const asset = (path) => {
     return '/' + path

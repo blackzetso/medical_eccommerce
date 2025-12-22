@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Database\Seeders\PermissionSeeder;
 
 class MigrateController extends Controller
 {
@@ -104,6 +106,78 @@ class MigrateController extends Controller
                 'success' => false,
                 'error' => $e->getMessage(),
                 'output' => Artisan::output()
+            ], 500);
+        }
+    }
+
+    /**
+     * تنفيذ seed للصلاحيات والرولز
+     */
+    public function runSeed(Request $request)
+    {
+        // التحقق من كلمة المرور
+        if (!$request->session()->has('migrate_authenticated')) {
+            return response()->json(['error' => 'غير مصرح'], 401);
+        }
+
+        try {
+            // التحقق من وجود الجداول المطلوبة
+            $requiredTables = ['permissions', 'roles', 'role_has_permissions'];
+            $missingTables = [];
+
+            foreach ($requiredTables as $table) {
+                if (!Schema::hasTable($table)) {
+                    $missingTables[] = $table;
+                }
+            }
+
+            if (!empty($missingTables)) {
+                $missingTablesList = implode(', ', $missingTables);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'الجداول المطلوبة غير موجودة',
+                    'output' => "⚠️ خطأ: الجداول التالية غير موجودة: {$missingTablesList}\n\n" .
+                               "يرجى تشغيل Migrate أولاً لإنشاء الجداول المطلوبة.\n" .
+                               "اضغط على زر 'تنفيذ Migrate' قبل تشغيل Seed."
+                ], 400);
+            }
+
+            // الحصول على عدد الصلاحيات والرولز قبل التنفيذ
+            $permissionsBefore = DB::table('permissions')->count();
+            $rolesBefore = DB::table('roles')->count();
+
+            // تنفيذ PermissionSeeder
+            $seeder = new PermissionSeeder();
+            $seeder->run();
+
+            // الحصول على عدد الصلاحيات والرولز بعد التنفيذ
+            $permissionsAfter = DB::table('permissions')->count();
+            $rolesAfter = DB::table('roles')->count();
+
+            $permissionsAdded = $permissionsAfter - $permissionsBefore;
+            $rolesAdded = $rolesAfter - $rolesBefore;
+
+            $output = "✅ تم تنفيذ PermissionSeeder بنجاح\n";
+            $output .= "─────────────────────────────────────\n";
+            $output .= "الصلاحيات: {$permissionsAfter} (تم إضافة {$permissionsAdded})\n";
+            $output .= "الأدوار: {$rolesAfter} (تم إضافة {$rolesAdded})\n";
+
+            return response()->json([
+                'success' => true,
+                'output' => $output,
+                'permissions_count' => $permissionsAfter,
+                'roles_count' => $rolesAfter,
+                'permissions_added' => $permissionsAdded,
+                'roles_added' => $rolesAdded,
+                'message' => 'تم تنفيذ seeding للصلاحيات والرولز بنجاح'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'output' => '❌ حدث خطأ: ' . $e->getMessage() . "\n\n" .
+                           "تأكد من تشغيل Migrate أولاً لإنشاء الجداول المطلوبة."
             ], 500);
         }
     }

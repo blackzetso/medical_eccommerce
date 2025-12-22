@@ -6,8 +6,10 @@ import { route } from 'ziggy-js'
 import { usePage } from '@inertiajs/vue3'
 import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
+import axios from 'axios'
 
 const page = usePage()
+const can = (permission) => page.props.auth?.permissions?.includes(permission)
 
 const props = defineProps({
   orders: Object,
@@ -16,13 +18,18 @@ const props = defineProps({
   paymentStatuses: Object
 })
 
-// Debug: Log props when component mounts
+// تحديث حالة notification_seen عند تحميل الصفحة
+const markOrdersAsSeen = async () => {
+  try {
+    await axios.post(route('admin.orders.markAsSeen'))
+  } catch (error) {
+    // Error marking orders as seen
+  }
+}
+
 onMounted(() => {
-  console.log('=== ORDERS COMPONENT MOUNTED ===')
-  console.log('Props orders:', props.orders)
-  console.log('Orders data:', props.orders.data)
-  console.log('Statuses:', props.statuses)
-  console.log('Payment Statuses:', props.paymentStatuses)
+  // تحديث حالة notification_seen عند تحميل الصفحة
+  markOrdersAsSeen()
 })
 
 // البحث
@@ -228,6 +235,7 @@ function formatDate(dateString) {
                 <!-- حالة الطلب -->
                 <td>
                   <select
+                    v-if="can('update_orders')"
                     :value="order.status"
                     @change="updateOrderStatus(order.id, $event.target.value)"
                     class="form-select form-select-sm"
@@ -237,11 +245,15 @@ function formatDate(dateString) {
                       {{ label }}
                     </option>
                   </select>
+                  <span v-else class="badge" :class="getStatusBadge(order.status)">
+                    {{ statuses[order.status] }}
+                  </span>
                 </td>
 
                 <!-- حالة الدفع -->
                 <td>
                   <select
+                    v-if="can('update_orders')"
                     :value="order.payment_status"
                     @change="updatePaymentStatus(order.id, $event.target.value)"
                     class="form-select form-select-sm"
@@ -251,6 +263,9 @@ function formatDate(dateString) {
                       {{ label }}
                     </option>
                   </select>
+                  <span v-else class="badge" :class="getPaymentStatusBadge(order.payment_status)">
+                    {{ paymentStatuses[order.payment_status] }}
+                  </span>
                 </td>
 
                 <!-- تاريخ الطلب -->

@@ -12,6 +12,7 @@ class Order extends Model
         'order_number',
         'user_id',
         'status',
+        'notification_seen',
         'subtotal',
         'tax_amount',
         'shipping_amount',
