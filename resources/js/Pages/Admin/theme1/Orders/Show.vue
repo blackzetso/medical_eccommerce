@@ -124,7 +124,7 @@ function formatDate(dateString) {
 // ترجمة الحالات
 const statusLabels = {
   'pending': 'جديد',
-  'processing': 'قيد المعالجة',
+  'processing': 'قيد التجهيز',
   'shipped': 'خرج للتوصيل',
   'delivered': 'تم التسليم',
   'cancelled': 'ملغي'
@@ -271,6 +271,7 @@ function getProductImage(product) {
           <div class="invoice-customer mt-2">
             <div><strong>العميل:</strong> {{ order.user?.name || 'غير محدد' }}</div>
             <div v-if="order.billing_address?.phone"><strong>الهاتف:</strong> {{ order.billing_address.phone }}</div>
+            <div><strong>نوع التوصيل:</strong> {{ order.delivery_type === 'delivery' ? 'توصيل' : 'استلام من المحل' }}</div>
             <div v-if="order.billing_address?.address">
               <strong>العنوان:</strong>
               {{ order.billing_address.address }}
@@ -304,6 +305,15 @@ function getProductImage(product) {
                     <strong>المبلغ الإجمالي:</strong>
                     <div class="fw-bold">{{ Number(order.total_amount).toFixed(2) }} {{ order.currency }}</div>
                     <small class="text-muted">{{ order.items?.length || 0 }} عنصر</small>
+                  </div>
+                  <div class="col-md-3 col-6">
+                    <strong>نوع التوصيل:</strong>
+                    <div>
+                      <span class="badge" :class="order.delivery_type === 'delivery' ? 'bg-info' : 'bg-success'">
+                        <i :class="order.delivery_type === 'delivery' ? 'fas fa-truck' : 'fas fa-store'" class="me-1"></i>
+                        {{ order.delivery_type === 'delivery' ? 'توصيل' : 'استلام من المحل' }}
+                      </span>
+                    </div>
                   </div>
                   <div class="col-md-3 col-6">
                     <strong>طريقة الدفع:</strong>

@@ -348,6 +348,20 @@ onUnmounted(() => {
         transform: rotate(360deg);
     }
 }
+
+/* عرض اسم المنتج بالكامل */
+.product-default .product-title {
+    text-overflow: unset !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+}
+
+.product-default .product-title a {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    display: block;
+}
 </style>
 
 

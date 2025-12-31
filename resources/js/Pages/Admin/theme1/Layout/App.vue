@@ -517,7 +517,7 @@
                     <!-- Sidebar menu end -->
 
                     <!-- Sidebar footer START -->
-                    <div class="px-3 mt-auto pt-3 border-top">
+                    <div class="sidebar-footer px-3 pt-3 border-top">
                         <div class="d-flex flex-column gap-2">
                             <!-- Settings and Home Icons -->
                             <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
@@ -806,6 +806,8 @@
     overflow: hidden !important;
     height: 100% !important;
     max-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .sidebar-scrollable #navbar-sidebar {
@@ -833,5 +835,17 @@
 
 .sidebar-scrollable #navbar-sidebar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
+}
+
+/* Sidebar footer sticky at bottom */
+.sidebar-footer {
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
+    background-color: #212529 !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 10;
+    padding-bottom: 1rem !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 </style>

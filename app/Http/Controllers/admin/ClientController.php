@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Lead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -62,16 +63,27 @@ class ClientController extends Controller
     public function show($id)
     {
         $client = User::where('user_type', 'client')
+            ->select(['id', 'name', 'email', 'phone', 'location_url', 'email_verified_at', 'created_at'])
             ->with(['orders' => function($query) {
                 $query->orderBy('created_at', 'desc')->limit(10);
             }])
             ->findOrFail($id);
+
+        // البحث عن lead المرتبط بالعميل باستخدام البريد الإلكتروني
+        $lead = Lead::where('email', $client->email)
+            ->orderBy('created_at', 'desc')
+            ->first();
 
         $statistics = $this->getStatistics($id);
 
         return Inertia::render('Admin/theme1/Clients/Show', [
             'client' => $client,
             'statistics' => $statistics,
+            'lead' => $lead ? [
+                'address' => $lead->address,
+                'location_url' => $lead->location_url,
+                'pharmacy_name' => $lead->pharmacy_name,
+            ] : null,
         ]);
     }
 

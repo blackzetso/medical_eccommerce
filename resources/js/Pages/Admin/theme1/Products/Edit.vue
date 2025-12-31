@@ -53,6 +53,9 @@ const mainImageFile = ref(null) // حفظ الملف مباشرة في ref بد�
 const colorCount = ref(props.product.colors ? props.product.colors.length : 0); // عدد الألوان
 const colorInputs = ref(props.product.colors || []); // قائمة الألوان
 
+// متغير لحفظ الكميات المراد إضافتها (لا تُطبق إلا عند الحفظ)
+const pendingStockAdditions = ref({})
+
 // ✅ توليد slug تلقائياً من الاسم الإنجليزي
 const generateSlug = () => {
   if (form.name_en && form.name_en.trim()) {
@@ -198,11 +201,12 @@ const updateAttributeValuePrice = (attributeId, valueId, newPrice) => {
 }
 
 const updateAttributeValueStock = (attributeId, valueId, newStock) => {
-  const attr = form.attributes.find(
-    attr => attr.attribute_id == attributeId && attr.attribute_value_id == valueId
-  )
-  if (attr) {
-    attr.stock_quantity = parseInt(newStock) || 0
+  const key = `${attributeId}_${valueId}`
+  const stockToAdd = parseInt(newStock) || 0
+  
+  // حفظ الكمية المراد إضافتها في متغير منفصل
+  if (stockToAdd >= 0) {
+    pendingStockAdditions.value[key] = stockToAdd
   }
 }
 
@@ -211,6 +215,12 @@ const getAttributeValueStock = (attributeId, valueId) => {
     attr => attr.attribute_id == attributeId && attr.attribute_value_id == valueId
   )
   return attr ? attr.stock_quantity : 0
+}
+
+// الحصول على الكمية المراد إضافتها
+const getPendingStockAddition = (attributeId, valueId) => {
+  const key = `${attributeId}_${valueId}`
+  return pendingStockAdditions.value[key] || 0
 }
 
 const getSelectedAttributesSummary = () => {
@@ -277,6 +287,21 @@ function updateForm() {
     }
   }
 
+  // تطبيق الإضافات المعلقة قبل الحفظ
+  Object.keys(pendingStockAdditions.value).forEach(key => {
+    const [attributeId, valueId] = key.split('_')
+    const stockToAdd = pendingStockAdditions.value[key]
+    
+    if (stockToAdd > 0) {
+      const attr = form.attributes.find(
+        attr => attr.attribute_id == attributeId && attr.attribute_value_id == valueId
+      )
+      if (attr) {
+        attr.stock_quantity = (attr.stock_quantity || 0) + stockToAdd
+      }
+    }
+  })
+
   // إضافة attributes كـ JSON string
   if (form.attributes && Array.isArray(form.attributes)) {
     formData.append('attributes', JSON.stringify(form.attributes));
@@ -323,6 +348,8 @@ function updateForm() {
     preserveState: false,
     preserveScroll: false,
     onSuccess: () => {
+      // مسح الإضافات المعلقة بعد الحفظ الناجح
+      pendingStockAdditions.value = {}
       Swal.fire('تم التحديث!', 'تم تحديث المنتج بنجاح.', 'success');
     },
     onError: (errors) => {
@@ -575,15 +602,24 @@ function updateForm() {
 
                             <!-- كمية المخزون لهذه القيمة -->
                             <div v-if="isAttributeValueSelected(attribute.id, value.id)" class="mt-2">
-                              <label class="form-label small">كمية المخزون:</label>
+                              <label class="form-label small">
+                                إضافة كمية للمخزون:
+                                <span class="text-info">(الموجود حالياً: {{ getAttributeValueStock(attribute.id, value.id) }})</span>
+                              </label>
                               <input
                                 type="number"
                                 class="form-control form-control-sm"
-                                :value="getAttributeValueStock(attribute.id, value.id)"
-                                @input="updateAttributeValueStock(attribute.id, value.id, $event.target.value)"
+                                :value="getPendingStockAddition(attribute.id, value.id)"
                                 placeholder="0"
                                 min="0"
+                                @input="updateAttributeValueStock(attribute.id, value.id, $event.target.value)"
                               />
+                              <small class="text-muted" v-if="getPendingStockAddition(attribute.id, value.id) > 0">
+                                سيتم إضافة {{ getPendingStockAddition(attribute.id, value.id) }} عند حفظ المنتج
+                              </small>
+                              <small class="text-muted" v-else>
+                                سيتم إضافة الكمية المدخلة عند حفظ المنتج
+                              </small>
                             </div>
                           </div>
                         </div>

@@ -121,7 +121,7 @@ class ProductController extends Controller
 
         $products = $query->orderBy('created_at', 'desc')->paginate(10);
 
-        // تعديل الصور لإرسال رابط كامل
+        // تعديل الصور لإرسال رابط كامل وإضافة total_stock
         $products->getCollection()->transform(function ($product) {
             // تعديل main_image إذا كان موجوداً
             if ($product->main_image) {
@@ -131,6 +131,10 @@ class ProductController extends Controller
             if (is_array($product->images)) {
                 $product->images = array_map(fn($img) => asset('/' . ltrim($img, '/')), $product->images);
             }
+            // إضافة total_stock (إجمالي المخزون)
+            $product->total_stock = $product->total_stock;
+            // إضافة has_attributes للتحقق من وجود خصائص
+            $product->has_attributes = $product->hasAttributes();
             return $product;
         });
 
@@ -642,6 +646,42 @@ class ProductController extends Controller
         $product->save();
 
         return redirect()->back()->with('success', 'تم إضافة الكمية بنجاح');
+    }
+
+    /**
+     * Update product cost and profit margin
+     */
+    public function updateCostAndMargin(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'cost' => 'required|numeric|min:0',
+            'profit_margin' => 'required|numeric|min:0|max:1000',
+        ]);
+
+        $product = Product::findOrFail($id);
+        
+        // تحديث التكلفة وهامش الربح
+        $product->cost = $validated['cost'];
+        $product->profit_margin = $validated['profit_margin'];
+        
+        // حساب السعر تلقائياً: price = cost * (1 + profit_margin / 100)
+        $product->price = $validated['cost'] * (1 + $validated['profit_margin'] / 100);
+        
+        // إعادة حساب sale_price إذا كان هناك خصم
+        if ($product->discount_type !== 'none' && $product->discount_value > 0) {
+            if ($product->discount_type === 'fixed') {
+                $product->sale_price = max(0, $product->price - $product->discount_value);
+            } elseif ($product->discount_type === 'percentage') {
+                $discountAmount = ($product->price * $product->discount_value) / 100;
+                $product->sale_price = max(0, $product->price - $discountAmount);
+            }
+        } else {
+            $product->sale_price = null;
+        }
+        
+        $product->save();
+
+        return back()->with('success', 'تم تحديث التكلفة وهامش الربح بنجاح');
     }
 
     /**

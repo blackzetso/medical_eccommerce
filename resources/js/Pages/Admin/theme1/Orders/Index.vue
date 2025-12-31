@@ -195,6 +195,7 @@ function formatDate(dateString) {
                 <th>رقم الطلب</th>
                 <th>العميل</th>
                 <th>المبلغ الإجمالي</th>
+                <th>نوع التوصيل</th>
                 <th>حالة الطلب</th>
                 <th>حالة الدفع</th>
                 <th>تاريخ الطلب</th>
@@ -230,6 +231,14 @@ function formatDate(dateString) {
                     <br>
                     <small class="text-muted">{{ order.items?.length || 0 }} عنصر</small>
                   </div>
+                </td>
+
+                <!-- نوع التوصيل -->
+                <td>
+                  <span class="badge" :class="order.delivery_type === 'delivery' ? 'bg-info' : 'bg-success'">
+                    <i :class="order.delivery_type === 'delivery' ? 'fas fa-truck' : 'fas fa-store'" class="me-1"></i>
+                    {{ order.delivery_type === 'delivery' ? 'توصيل' : 'استلام من المحل' }}
+                  </span>
                 </td>
 
                 <!-- حالة الطلب -->

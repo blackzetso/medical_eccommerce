@@ -168,7 +168,7 @@
 
     const statusLabels = {
         'pending': 'جديد',
-        'processing': 'قيد المعالجة',
+        'processing': 'قيد التجهيز',
         'shipped': 'خرج للتوصيل',
         'delivered': 'تم التسليم',
         'cancelled': 'ملغي',

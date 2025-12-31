@@ -113,6 +113,7 @@ Route::middleware([
     Route::resource('products', ProductController::class);
     Route::patch('/products/{id}/status', [ProductController::class, 'toggleStatus'])->name('products.status');
     Route::patch('/products/{id}/add-stock', [ProductController::class, 'addStockQuantity'])->name('products.addStock');
+    Route::patch('/products/{id}/cost-margin', [ProductController::class, 'updateCostAndMargin'])->name('products.updateCostMargin');
 
     Route::resource('brands', BrandController::class);
     Route::patch('/brands/{id}/status', [BrandController::class, 'toggleStatus'])->name('brands.status');

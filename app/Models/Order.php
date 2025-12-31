@@ -12,6 +12,7 @@ class Order extends Model
         'order_number',
         'user_id',
         'status',
+        'delivery_type',
         'notification_seen',
         'subtotal',
         'tax_amount',
@@ -56,7 +57,7 @@ class Order extends Model
     {
         return [
             'pending' => 'جديد',
-            'processing' => 'قيد المعالجة',
+            'processing' => 'قيد التجهيز',
             'shipped' => 'خرج للتوصيل',
             'delivered' => 'تم التسليم',
             'cancelled' => 'ملغي',
@@ -84,5 +85,20 @@ class Order extends Model
     public function getPaymentStatusLabelAttribute(): string
     {
         return self::getPaymentStatuses()[$this->payment_status] ?? $this->payment_status;
+    }
+
+    // أنواع التوصيل
+    public static function getDeliveryTypes(): array
+    {
+        return [
+            'delivery' => 'توصيل',
+            'pickup' => 'استلام من المحل',
+        ];
+    }
+
+    // تحويل نوع التوصيل للعربية
+    public function getDeliveryTypeLabelAttribute(): string
+    {
+        return self::getDeliveryTypes()[$this->delivery_type] ?? $this->delivery_type;
     }
 }

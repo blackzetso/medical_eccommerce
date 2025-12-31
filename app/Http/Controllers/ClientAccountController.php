@@ -35,6 +35,11 @@ class ClientAccountController extends Controller
      */
     public function createOrder(Request $request)
     {
+        // التحقق من البيانات المدخلة
+        $request->validate([
+            'delivery_type' => 'required|in:delivery,pickup',
+        ]);
+
         $userId = Auth::id();
         if (!$userId) {
             return response()->json([
@@ -65,8 +70,10 @@ class ClientAccountController extends Controller
         $orderNumber = 'ORD-' . strtoupper(uniqid()) . '-' . rand(1000,9999);
 
         // إعداد الحقول المطلوبة
+        $deliveryType = $request->input('delivery_type', 'delivery');
         $taxAmount = 0;
-        $shippingAmount = 0;
+        // جلب رسوم التوصيل من الإعدادات
+        $shippingAmount = ($deliveryType === 'delivery') ? (float) Setting::get('shipping_cost', 15) : 0;
         $discountAmount = 0;
         $currency = Setting::get('currency', 'EGP');
         $billingAddress = json_encode([ 'address' => '', 'city' => '', 'country' => '' ]);
@@ -76,12 +83,13 @@ class ClientAccountController extends Controller
             'user_id' => $userId,
             'order_number' => $orderNumber,
             'status' => 'pending',
+            'delivery_type' => $deliveryType,
             'notification_seen' => 0, // طلب جديد غير مرئي
             'subtotal' => $total,
             'tax_amount' => $taxAmount,
             'shipping_amount' => $shippingAmount,
             'discount_amount' => $discountAmount,
-            'total_amount' => $total,
+            'total_amount' => $total + $shippingAmount + $taxAmount - $discountAmount,
             'currency' => $currency,
             'billing_address' => $billingAddress,
             'shipping_address' => $shippingAddress,
@@ -326,9 +334,13 @@ class ClientAccountController extends Controller
                 ->selectRaw('SUM(total_price) as total_price')
                 ->value('total_price');
         }
+        // جلب رسوم التوصيل من الإعدادات
+        $shippingCost = (float) Setting::get('shipping_cost', 15);
+        
         return inertia('Client/Cart', [
             'cartItems' => $cartItems,
             'totalPrice' => $totalPrice ?? 0,
+            'shippingCost' => $shippingCost,
         ]);
     }
     public function myOrders()
@@ -349,7 +361,7 @@ class ClientAccountController extends Controller
         $userId = Auth::id();
         $order = Order::where('id', $id)
             ->where('user_id', $userId)
-            ->with(['items.product:id,name,images,sku', 'user:id,name,email,location_url'])
+            ->with(['items.product:id,name,images,main_image,sku', 'user:id,name,email,location_url'])
             ->firstOrFail();
         
         return inertia('Client/OrderDetails', [

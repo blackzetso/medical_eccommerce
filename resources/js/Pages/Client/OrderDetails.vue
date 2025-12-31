@@ -117,10 +117,19 @@
                                                 <td>
                                                     <div class="d-flex align-items-center">
                                                         <img
+                                                            v-if="item.product"
                                                             :src="getProductImage(item.product)"
                                                             :alt="item.product_name"
-                                                            class="rounded me-3"
-                                                            style="width: 60px; height: 60px; object-fit: cover;"
+                                                            class="rounded"
+                                                            style="width: 60px; height: 60px; object-fit: cover; margin-left: 15px;"
+                                                            @error="$event.target.src='/front/theme1/images/demoes/demo3/products/product-1.jpg'"
+                                                        />
+                                                        <img
+                                                            v-else
+                                                            src="/front/theme1/images/demoes/demo3/products/product-1.jpg"
+                                                            :alt="item.product_name"
+                                                            class="rounded"
+                                                            style="width: 60px; height: 60px; object-fit: cover; margin-left: 15px;"
                                                         />
                                                         <div>
                                                             <div class="fw-bold">{{ item.product_name }}</div>
@@ -315,7 +324,7 @@ function formatPrice(price) {
 
 const statusLabels = {
     'pending': 'جديد',
-    'processing': 'قيد المعالجة',
+    'processing': 'قيد التجهيز',
     'shipped': 'خرج للتوصيل',
     'delivered': 'تم التسليم',
     'cancelled': 'ملغي',
@@ -358,10 +367,21 @@ function getPaymentStatusBadge(status) {
 }
 
 function getProductImage(product) {
-    if (!product || !product.images) {
+    if (!product) {
         return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
     }
 
+    // استخدام main_image إذا كان موجوداً
+    if (product.main_image && product.main_image !== 'null' && product.main_image !== '') {
+        let img = product.main_image;
+        // إذا كان المسار لا يبدأ بـ http أو /
+        if (!img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
+        }
+        return img;
+    }
+    
+    // استخدام images array إذا كان موجوداً
     let images = product.images;
 
     // If images is a string (JSON), parse it
@@ -369,28 +389,32 @@ function getProductImage(product) {
         try {
             images = JSON.parse(images);
         } catch (e) {
+            // إذا فشل parsing، جرب كـ string عادي
+            if (images && images.trim() !== '' && images !== 'null') {
+                let img = images;
+                if (!img.startsWith('http') && !img.startsWith('/')) {
+                    img = '/' + img;
+                }
+                return img;
+            }
             return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
         }
     }
 
-    // Check if images is an array with at least one item
-    if (Array.isArray(images) && images.length > 0) {
-        let imagePath = images[0];
-
-        // Remove leading slashes
-        if (imagePath.startsWith('/')) {
-            imagePath = imagePath.substring(1);
+    // وإلا استخدم أول صورة من المصفوفة
+    if (images && Array.isArray(images) && images.length > 0) {
+        let img = images[0];
+        // التحقق من أن الصورة موجودة وصحيحة
+        if (!img || img === 'null' || img === '') {
+            return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
         }
-
-        // If path already includes storage/, use it as is
-        if (imagePath.startsWith('storage/')) {
-            return `/${imagePath}`;
+        // إذا كان المسار لا يبدأ بـ http أو /
+        if (typeof img === 'string' && !img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
         }
-
-        // Otherwise, add storage/ prefix
-        return `/storage/${imagePath}`;
+        return img;
     }
-
+    
     return '/front/theme1/images/demoes/demo3/products/product-1.jpg';
 }
 

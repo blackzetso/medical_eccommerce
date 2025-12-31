@@ -173,6 +173,36 @@ input[type=number]::-webkit-outer-spin-button {
     color: #08C !important;
 }
 
+/* تنسيق خيارات التوصيل */
+.delivery-options {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.delivery-options .form-check {
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.delivery-options .form-check:hover {
+    border-color: #667eea;
+}
+
+.delivery-options .form-check-input:checked + .form-check-label {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.delivery-options .form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
 </style>
 <template>
     <Head title="لوحة التحكم" />
@@ -272,23 +302,58 @@ input[type=number]::-webkit-outer-spin-button {
 
                 <div class="col-lg-4">
                     <div class="cart-summary">
+                        <!-- اختيار نوع التوصيل -->
+                        <div class="delivery-options mb-4">
+                            <h4 class="mb-3">اختر نوع الاستلام</h4>
+                            <div class="form-check mb-2">
+                                <input 
+                                    class="form-check-input" 
+                                    type="radio" 
+                                    name="deliveryType" 
+                                    id="delivery" 
+                                    value="delivery" 
+                                    v-model="deliveryType"
+                                />
+                                <label class="form-check-label" for="delivery">
+                                    <i class="icon-truck" style="margin-left: 8px;"></i>
+                                    توصيل 
+                                    <small class="d-block text-muted">رسوم التوصيل: {{ (props.shippingCost || 15).toFixed(2) }} جنيه</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input 
+                                    class="form-check-input" 
+                                    type="radio" 
+                                    name="deliveryType" 
+                                    id="pickup" 
+                                    value="pickup" 
+                                    v-model="deliveryType"
+                                />
+                                <label class="form-check-label" for="pickup">
+                                    <i class="icon-store mr-4" style="margin-left: 8px;"></i>
+                                    استلام من المخزن
+                                    <small class="d-block text-muted">مجاني</small>
+                                </label>
+                            </div>
+                        </div>
+
                         <h3> إجمالي الفاتورة </h3>
 
                         <table class="table table-totals">
                             <tbody>
                                 <tr>
                                     <td>المجموع الفرعي</td>
-                                    <td>{{ Number(subtotal) }}</td>
+                                    <td>{{ Number(subtotal).toFixed(2) }} جنيه</td>
                                 </tr>
                                 <tr>
-                                    <td>توصيل</td>
-                                    <td>15</td>
+                                    <td>{{ deliveryType === 'delivery' ? 'رسوم التوصيل' : 'رسوم الاستلام' }}</td>
+                                    <td>{{ shippingCost.toFixed(2) }} جنيه</td>
                                 </tr>
                             </tbody>
                             <tfoot>
                                 <tr>
                                     <td>الإجمالي</td>
-                                    <td>{{ Number(total) + 15 }}</td>
+                                    <td>{{ Number(total).toFixed(2) }} جنيه</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -455,6 +520,10 @@ const removeQty = (item) => {
 const props = defineProps({
     cartItems: Array,
     totalPrice: Number,
+    shippingCost: {
+        type: Number,
+        default: 15
+    },
 });
 
 // متغير محلي reactive للسلة
@@ -529,16 +598,24 @@ const subtotal = computed(() => {
     }, 0);
 });
 
-const shippingCost = 0;
+// نوع التوصيل المختار (افتراضياً: توصيل)
+const deliveryType = ref('delivery');
+
+// حساب رسوم التوصيل بناءً على النوع المختار
+const shippingCost = computed(() => {
+    return deliveryType.value === 'delivery' ? (props.shippingCost || 15) : 0;
+});
+
 const total = computed(() => {
-    return subtotal.value + shippingCost;
+    return subtotal.value + shippingCost.value;
 });
 
 // دالة لإنشاء الأوردر مباشرة عند الضغط على زر المتابعة
 const createOrder = () => {
     router.post(route('order.create'), {
         items: cartItemsRef.value,
-        total: total.value
+        total: total.value,
+        delivery_type: deliveryType.value
     }, {
         onSuccess: () => {
             Swal.fire({
@@ -559,9 +636,18 @@ const createOrder = () => {
     });
 };
 
-const getProductImage = (cartItems) => {
-    if (cartItems.images && cartItems.images.length > 0) {
-        let img = cartItems.images[0];
+const getProductImage = (product) => {
+    // استخدام main_image إذا كان موجوداً
+    if (product.main_image) {
+        let img = product.main_image;
+        if (!img.startsWith('http') && !img.startsWith('/')) {
+            img = '/' + img;
+        }
+        return img;
+    }
+    // وإلا استخدم أول صورة من المصفوفة
+    if (product.images && product.images.length > 0) {
+        let img = product.images[0];
         // إذا كان المسار لا يبدأ بـ http أو /
         if (!img.startsWith('http') && !img.startsWith('/')) {
             img = '/' + img;

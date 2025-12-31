@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import AppLayout from '@/Pages/Admin/theme1/Layout/App.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
@@ -20,7 +20,12 @@ const props = defineProps({
 })
 
 onMounted(() => {
-  // Component mounted
+  // تهيئة قيم التكلفة وهامش الربح من المنتجات
+  props.products.data.forEach(product => {
+    productCosts.value[product.id] = product.cost || 0
+    productMargins.value[product.id] = product.profit_margin || 0
+    productPrices.value[product.id] = product.price || 0
+  })
 })
 
 // ✅ حذف منتج
@@ -92,6 +97,27 @@ watch(search, (value) => {
   }, 500)
 })
 
+// ✅ إدارة التكلفة وهامش الربح
+const productCosts = ref({})
+const productMargins = ref({})
+const productPrices = ref({})
+const loadingCostMargin = ref({})
+const saveTimeouts = ref({})
+
+// ✅ تحديث قيم التكلفة وهامش الربح عند تغيير المنتجات
+watch(() => props.products.data, (newProducts) => {
+  newProducts.forEach(product => {
+    if (!productCosts.value[product.id]) {
+      productCosts.value[product.id] = product.cost != null ? Number(product.cost) : 0
+    }
+    if (!productMargins.value[product.id]) {
+      productMargins.value[product.id] = product.profit_margin != null ? Number(product.profit_margin) : 0
+    }
+    // حساب السعر بناءً على التكلفة والهامش الحاليين
+    calculatePrice(product.id)
+  })
+}, { immediate: true })
+
 // ✅ عرض الصورة الافتراضية
 function getMainImage(product) {
   // استخدام main_image إذا كان موجوداً
@@ -126,6 +152,15 @@ function renderStars(rating) {
     stars.push('☆')
   }
   return stars.join('')
+}
+
+// ✅ تنسيق السعر بشكل آمن
+function formatPrice(price) {
+  if (price == null || price === '' || isNaN(price)) {
+    return '0.00'
+  }
+  const numPrice = typeof price === 'string' ? parseFloat(price) : Number(price)
+  return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2)
 }
 
 // ✅ إضافة معايير البحث إلى روابط pagination
@@ -177,6 +212,115 @@ function handleAddStock(productId, event) {
     }
   })
 }
+
+// حساب السعر فورياً
+function calculatePrice(productId) {
+  // قراءة القيم الحالية من reactive refs
+  const costValue = productCosts.value[productId]
+  const marginValue = productMargins.value[productId]
+  
+  // تحويل القيم إلى أرقام
+  const cost = costValue != null && costValue !== '' ? parseFloat(costValue) : 0
+  const margin = marginValue != null && marginValue !== '' ? parseFloat(marginValue) : 0
+  
+  // حساب السعر: السعر = التكلفة × (1 + هامش الربح / 100)
+  // مثال: تكلفة 110 وهامش 10% = 110 × (1 + 10/100) = 110 × 1.1 = 121
+  if (!isNaN(cost) && !isNaN(margin) && cost > 0 && margin >= 0) {
+    const calculatedPrice = cost * (1 + margin / 100)
+    productPrices.value[productId] = Number(calculatedPrice.toFixed(2))
+  } else {
+    // إذا كانت القيم غير صحيحة أو التكلفة = 0، استخدم السعر الأصلي
+    const product = props.products.data.find(p => p.id === productId)
+    if (product) {
+      productPrices.value[productId] = product.price != null ? Number(product.price) : 0
+    }
+  }
+}
+
+// حفظ التكلفة وهامش الربح
+function saveCostAndMargin(productId) {
+  // إلغاء timeout السابق إن وجد
+  if (saveTimeouts.value[productId]) {
+    clearTimeout(saveTimeouts.value[productId])
+  }
+
+  // منع الإرسال المتكرر
+  if (loadingCostMargin.value[productId]) {
+    return
+  }
+
+  const cost = parseFloat(productCosts.value[productId])
+  const margin = parseFloat(productMargins.value[productId])
+
+  // التحقق من صحة القيم
+  if (isNaN(cost) || cost < 0 || isNaN(margin) || margin < 0 || margin > 1000) {
+    return
+  }
+
+  loadingCostMargin.value[productId] = true
+
+  router.patch(route('admin.products.updateCostMargin', productId), {
+    cost: cost,
+    profit_margin: margin
+  }, {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      // تحديث القيم من الاستجابة
+      if (page.props.products) {
+        const updatedProduct = page.props.products.data.find(p => p.id === productId)
+        if (updatedProduct) {
+          productCosts.value[productId] = updatedProduct.cost
+          productMargins.value[productId] = updatedProduct.profit_margin
+          productPrices.value[productId] = updatedProduct.price
+        }
+      }
+      // إظهار رسالة نجاح
+      toast.success(t('operation_successful') || 'تم تحديث التكلفة وهامش الربح بنجاح', {
+        position: "top-right",
+        autoClose: 3000,
+      })
+      loadingCostMargin.value[productId] = false
+    },
+    onError: (errors) => {
+      toast.error(errors.cost?.[0] || errors.profit_margin?.[0] || t('operation_failed') || 'فشلت العملية', {
+        position: "top-right",
+        autoClose: 3000,
+      })
+      loadingCostMargin.value[productId] = false
+    }
+  })
+}
+
+// حفظ عند blur مع debounce
+function handleCostMarginBlur(productId) {
+  // إلغاء timeout السابق
+  if (saveTimeouts.value[productId]) {
+    clearTimeout(saveTimeouts.value[productId])
+  }
+  
+  // حفظ بعد 300ms
+  saveTimeouts.value[productId] = setTimeout(() => {
+    saveCostAndMargin(productId)
+  }, 300)
+}
+
+// تحديث السعر عند تغيير التكلفة أو الهامش
+async function handleCostChange(productId, newValue) {
+  // تحديث القيمة أولاً
+  productCosts.value[productId] = parseFloat(newValue) || 0
+  // انتظار تحديث reactivity ثم حساب السعر
+  await nextTick()
+  calculatePrice(productId)
+}
+
+async function handleMarginChange(productId, newValue) {
+  // تحديث القيمة أولاً
+  productMargins.value[productId] = parseFloat(newValue) || 0
+  // انتظار تحديث reactivity ثم حساب السعر
+  await nextTick()
+  calculatePrice(productId)
+}
 </script>
 
 <template>
@@ -216,6 +360,8 @@ function handleAddStock(productId, event) {
                 <th>{{ t('image') }}</th>
                 <th>{{ t('product_name') }}</th>
                 <th>{{ t('price') }}</th>
+                <th>التكلفة</th>
+                <th>هامش الربح %</th>
                 <th>{{ t('stock') }}</th>
                 <th>إضافة كمية</th>
                 <th>{{ t('categories') }}</th>
@@ -256,17 +402,48 @@ function handleAddStock(productId, event) {
                 <!-- السعر -->
                 <td>
                   <div v-if="product.discount_type !== 'none' && product.discount_value > 0">
-                    <span class="text-decoration-line-through text-muted">${{ product.price }}</span>
+                    <span class="text-decoration-line-through text-muted">${{ formatPrice(productPrices[product.id] || product.price) }}</span>
                     <br>
-                    <span class="text-success fw-bold">${{ product.sale_price }}</span>
+                    <span class="text-success fw-bold">${{ formatPrice(product.sale_price) }}</span>
                     <br>
                     <small class="text-info">
                       {{ product.discount_type === 'percentage' ? `خصم ${product.discount_value}%` : `خصم $${product.discount_value}` }}
                     </small>
                   </div>
                   <div v-else>
-                    <span class="fw-bold">${{ product.price }}</span>
+                    <span class="fw-bold">${{ formatPrice(productPrices[product.id] || product.price) }}</span>
                   </div>
+                </td>
+
+                <!-- التكلفة -->
+                <td>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control form-control-sm"
+                    :value="productCosts[product.id] || product.cost || 0"
+                    @input="handleCostChange(product.id, $event.target.value)"
+                    @blur="handleCostMarginBlur(product.id)"
+                    style="width: 100px; margin: 0 auto;"
+                    :disabled="loadingCostMargin[product.id]"
+                  />
+                </td>
+
+                <!-- هامش الربح -->
+                <td>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    class="form-control form-control-sm"
+                    :value="productMargins[product.id] || product.profit_margin || 0"
+                    @input="handleMarginChange(product.id, $event.target.value)"
+                    @blur="handleCostMarginBlur(product.id)"
+                    style="width: 100px; margin: 0 auto;"
+                    :disabled="loadingCostMargin[product.id]"
+                  />
                 </td>
 
                 <!-- المخزون -->
@@ -274,11 +451,11 @@ function handleAddStock(productId, event) {
                   <div v-if="product.manage_stock">
                     <span
                       class="badge"
-                      :class="product.stock_quantity > 0 ? 'bg-success' : 'bg-danger'"
+                      :class="(product.has_attributes ? product.total_stock : product.stock_quantity) > 0 ? 'bg-success' : 'bg-danger'"
                     >
-                      {{ product.stock_quantity || 0 }}
+                      {{ product.has_attributes ? (product.total_stock || 0) : (product.stock_quantity || 0) }}
                     </span>
-                    <small class="d-block text-muted mt-1" v-if="product.stock_quantity <= 0">
+                    <small class="d-block text-muted mt-1" v-if="(product.has_attributes ? product.total_stock : product.stock_quantity) <= 0">
                       غير متوفر
                     </small>
                     <small class="d-block text-success mt-1" v-else>
@@ -359,7 +536,7 @@ function handleAddStock(productId, event) {
 
               <!-- لما مفيش بيانات -->
               <tr v-if="!props.products.data.length" class="text-center">
-                <td colspan="11" class="text-center py-4">
+                <td colspan="13" class="text-center py-4">
                   <i class="bi bi-inbox text-muted fs-4 d-block mb-2"></i>
                   <span class="text-muted">{{ t('no_data_available') }}</span>
                 </td>

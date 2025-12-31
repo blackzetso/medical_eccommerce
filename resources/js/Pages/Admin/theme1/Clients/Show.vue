@@ -5,7 +5,8 @@ import { route } from 'ziggy-js'
 
 const props = defineProps({
   client: Object,
-  statistics: Object
+  statistics: Object,
+  lead: Object
 })
 
 // تنسيق التاريخ
@@ -89,8 +90,43 @@ function formatCurrency(amount) {
               </div>
 
               <div class="mb-3">
-                <h6 class="mb-2">الهاتف</h6>
-                <p class="text-muted mb-0">{{ client.phone || 'غير محدد' }}</p>
+                <h6 class="mb-2">رقم الهاتف</h6>
+                <p class="text-muted mb-0">
+                  <i class="bi bi-telephone me-1"></i>
+                  {{ client.phone || 'غير محدد' }}
+                </p>
+              </div>
+
+              <div v-if="client.location_url || (lead && lead.location_url)" class="mb-3">
+                <h6 class="mb-2">رابط الموقع</h6>
+                <p class="text-muted mb-0">
+                  <a 
+                    :href="client.location_url || (lead && lead.location_url)" 
+                    target="_blank" 
+                    class="text-primary text-decoration-none"
+                    v-if="client.location_url || (lead && lead.location_url)"
+                  >
+                    <i class="bi bi-geo-alt me-1"></i>
+                    عرض الموقع على الخريطة
+                  </a>
+                  <span v-else>غير محدد</span>
+                </p>
+              </div>
+
+              <div v-if="lead && lead.address" class="mb-3">
+                <h6 class="mb-2">العنوان</h6>
+                <p class="text-muted mb-0">
+                  <i class="bi bi-house-door me-1"></i>
+                  {{ lead.address }}
+                </p>
+              </div>
+
+              <div v-if="lead && lead.pharmacy_name" class="mb-3">
+                <h6 class="mb-2">اسم الصيدلية</h6>
+                <p class="text-muted mb-0">
+                  <i class="bi bi-building me-1"></i>
+                  {{ lead.pharmacy_name }}
+                </p>
               </div>
 
               <div class="mb-3">
@@ -193,6 +229,30 @@ function formatCurrency(amount) {
                   <h6 class="mb-2">آخر طلب</h6>
                   <p class="text-muted mb-0">{{ formatDate(statistics.last_order_date) }}</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- عرض الخريطة إذا كان متوفر -->
+      <div v-if="client.location_url || (lead && lead.location_url)" class="row mt-4">
+        <div class="col-12">
+          <div class="card shadow">
+            <div class="card-header border-bottom p-4">
+              <h5 class="card-header-title mb-0">
+                <i class="bi bi-map me-2"></i>موقع العميل على الخريطة
+              </h5>
+            </div>
+            <div class="card-body p-0">
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+                <iframe 
+                  :src="client.location_url || (lead && lead.location_url)" 
+                  style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                  allowfullscreen
+                  loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"
+                ></iframe>
               </div>
             </div>
           </div>
