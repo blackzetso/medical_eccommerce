@@ -6,6 +6,8 @@ use inertia\inertia;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 
 
@@ -146,8 +148,17 @@ class CategoryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+public function destroy(Request $request, string $id)
     {
+        // التحقق من كلمة المرور
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        if (!Hash::check($request->password, Auth::user()->password)) {
+            return back()->withErrors(['password' => 'كلمة المرور غير صحيحة']);
+        }
+
         $category = Category::findOrFail($id);
         
         // حذف الصورة إذا كانت موجودة

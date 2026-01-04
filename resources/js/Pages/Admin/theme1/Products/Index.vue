@@ -32,21 +32,47 @@ onMounted(() => {
 function confirmDelete(id) {
   Swal.fire({
     title: t('are_you_sure'),
-    text: t('this_action_cannot_be_undone'),
+    text: 'يرجى إدخال كلمة مرور الأدمن للمتابعة',
     icon: 'warning',
+    input: 'password',
+    inputPlaceholder: 'كلمة المرور',
+    inputAttributes: {
+      autocapitalize: 'off',
+      autocorrect: 'off',
+      autocomplete: 'new-password',
+      name: 'admin-password-delete-' + Date.now(),
+      id: 'swal-password-' + Date.now()
+    },
     showCancelButton: true,
     confirmButtonColor: '#d33',
     cancelButtonColor: '#3085d6',
     confirmButtonText: t('yes') + '، ' + t('delete'),
-    cancelButtonText: t('cancel')
+    cancelButtonText: t('cancel'),
+    inputValidator: (value) => {
+      if (!value) {
+        return 'يجب إدخال كلمة المرور'
+      }
+    },
+    didOpen: () => {
+      // إزالة focus من أي حقول أخرى لمنع auto-fill
+      const searchInput = document.querySelector('input[name="search"]')
+      if (searchInput) {
+        searchInput.blur()
+        searchInput.value = search.value || ''
+      }
+    }
   }).then((result) => {
     if (result.isConfirmed) {
       router.delete(route('admin.products.destroy', id), {
+        data: {
+          password: result.value
+        },
         onSuccess: () => {
           Swal.fire(t('success'), t('product_deleted_successfully'), 'success')
         },
-        onError: () => {
-          Swal.fire(t('error'), t('operation_failed'), 'error')
+        onError: (errors) => {
+          const errorMessage = errors.password?.[0] || errors.message || t('operation_failed')
+          Swal.fire(t('error'), errorMessage, 'error')
         }
       })
     }
@@ -337,6 +363,7 @@ async function handleMarginChange(productId, newValue) {
             class="form-control"
             v-model="search"
             name="search"
+            autocomplete="off"
             :placeholder="t('search') + '...'"
           />
         </div>
@@ -359,15 +386,14 @@ async function handleMarginChange(productId, newValue) {
                 <th>#</th>
                 <th>{{ t('image') }}</th>
                 <th>{{ t('product_name') }}</th>
-                <th>{{ t('price') }}</th>
-                <th>التكلفة</th>
-                <th>هامش الربح %</th>
+                <th>سعر البيع</th>
                 <th>{{ t('stock') }}</th>
                 <th>إضافة كمية</th>
+                <th>التكلفة</th>
+                <th>هامش الربح %</th>
                 <th>{{ t('categories') }}</th>
                 <th>{{ t('brands') }}</th>
                 <th>{{ t('is_featured') }}</th>
-                <th>{{ t('status') }}</th>
                 <th>{{ t('actions') }}</th>
               </tr>
             </thead>
@@ -399,7 +425,7 @@ async function handleMarginChange(productId, newValue) {
                   <small class="text-muted d-block">{{ product.sku }}</small>
                 </td>
 
-                <!-- السعر -->
+                <!-- سعر البيع -->
                 <td>
                   <div v-if="product.discount_type !== 'none' && product.discount_value > 0">
                     <span class="text-decoration-line-through text-muted">${{ formatPrice(productPrices[product.id] || product.price) }}</span>
@@ -413,37 +439,6 @@ async function handleMarginChange(productId, newValue) {
                   <div v-else>
                     <span class="fw-bold">${{ formatPrice(productPrices[product.id] || product.price) }}</span>
                   </div>
-                </td>
-
-                <!-- التكلفة -->
-                <td>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="form-control form-control-sm"
-                    :value="productCosts[product.id] || product.cost || 0"
-                    @input="handleCostChange(product.id, $event.target.value)"
-                    @blur="handleCostMarginBlur(product.id)"
-                    style="width: 100px; margin: 0 auto;"
-                    :disabled="loadingCostMargin[product.id]"
-                  />
-                </td>
-
-                <!-- هامش الربح -->
-                <td>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1000"
-                    class="form-control form-control-sm"
-                    :value="productMargins[product.id] || product.profit_margin || 0"
-                    @input="handleMarginChange(product.id, $event.target.value)"
-                    @blur="handleCostMarginBlur(product.id)"
-                    style="width: 100px; margin: 0 auto;"
-                    :disabled="loadingCostMargin[product.id]"
-                  />
                 </td>
 
                 <!-- المخزون -->
@@ -481,6 +476,37 @@ async function handleMarginChange(productId, newValue) {
                   />
                 </td>
 
+                <!-- التكلفة -->
+                <td>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control form-control-sm"
+                    :value="productCosts[product.id] || product.cost || 0"
+                    @input="handleCostChange(product.id, $event.target.value)"
+                    @blur="handleCostMarginBlur(product.id)"
+                    style="width: 100px; margin: 0 auto;"
+                    :disabled="loadingCostMargin[product.id]"
+                  />
+                </td>
+
+                <!-- هامش الربح -->
+                <td>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1000"
+                    class="form-control form-control-sm"
+                    :value="productMargins[product.id] || product.profit_margin || 0"
+                    @input="handleMarginChange(product.id, $event.target.value)"
+                    @blur="handleCostMarginBlur(product.id)"
+                    style="width: 100px; margin: 0 auto;"
+                    :disabled="loadingCostMargin[product.id]"
+                  />
+                </td>
+
                 <!-- القسم -->
                 <td>
                   <span v-if="product.category">{{ product.category.name }}</span>
@@ -501,18 +527,6 @@ async function handleMarginChange(productId, newValue) {
                   >
                     {{ product.is_featured ? t('is_featured') : t('inactive') }}
                   </span>
-                </td>
-
-                <!-- الحالة -->
-                <td>
-                  <div class="form-check form-switch d-flex justify-content-center">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      :checked="product.status"
-                      @change="toggleStatus(product.id)"
-                    />
-                  </div>
                 </td>
 
                 <!-- الإجراءات -->
@@ -536,7 +550,7 @@ async function handleMarginChange(productId, newValue) {
 
               <!-- لما مفيش بيانات -->
               <tr v-if="!props.products.data.length" class="text-center">
-                <td colspan="13" class="text-center py-4">
+                <td colspan="12" class="text-center py-4">
                   <i class="bi bi-inbox text-muted fs-4 d-block mb-2"></i>
                   <span class="text-muted">{{ t('no_data_available') }}</span>
                 </td>

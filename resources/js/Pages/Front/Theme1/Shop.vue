@@ -140,6 +140,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import FrontLayout from '@/Pages/Front/Theme1/Layout/App.vue';
 import { usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 
 // Props from the controller
 const props = defineProps({
@@ -285,8 +286,39 @@ const addToCart = (product) => {
                 }
             }
         },
-        onError: () => {
-            // يمكن عرض رسالة خطأ
+        onError: (errors) => {
+            let errorMessage = 'حدث خطأ أثناء إضافة المنتج للسلة';
+            
+            if (errors.message) {
+                if (Array.isArray(errors.message)) {
+                    errorMessage = errors.message[0];
+                } else {
+                    errorMessage = errors.message;
+                }
+            } else if (typeof errors === 'string') {
+                errorMessage = errors;
+            } else if (errors && Object.keys(errors).length > 0) {
+                errorMessage = Object.values(errors)[0];
+            }
+            
+            // استخدام SweetAlert لعرض رسالة خطأ واضحة
+            if (errorMessage.includes('غير متوفر') || errorMessage.includes('المخزون') || errorMessage.includes('غير متوفر في المخزون')) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'هذا المنتج غير متوفر حاليًا',
+                    text: errorMessage,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#08C'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: errorMessage,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#08C'
+                });
+            }
         }
     });
 };

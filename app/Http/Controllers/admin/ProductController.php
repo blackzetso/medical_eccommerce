@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -595,8 +597,17 @@ class ProductController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
+        // التحقق من كلمة المرور
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        if (!Hash::check($request->password, Auth::user()->password)) {
+            return back()->withErrors(['password' => 'كلمة المرور غير صحيحة']);
+        }
+
         $product = Product::findOrFail($id);
 
         // حذف الصور من public/uploads/products قبل حذف المنتج

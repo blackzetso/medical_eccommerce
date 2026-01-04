@@ -72,7 +72,7 @@ const goToNext = () => {
     <Head :title="t('home')" />
     <AppLayout>
         <!-- Dynamic Sliders with Swiper -->
-        <div v-if="sliders && sliders.length > 0" class="home-slider-wrapper" style="height: 50vh !important; position: relative;">
+        <div v-if="sliders && sliders.length > 0" class="home-slider-wrapper">
             <swiper
                 :modules="modules"
                 :slides-per-view="1"
@@ -85,13 +85,11 @@ const goToNext = () => {
                 :fade-effect="{ crossFade: true }"
                 @swiper="onSwiper"
                 class="home-slider-swiper"
-                style="height: 100%;"
             >
-                <swiper-slide v-for="slider in sliders" :key="slider.id" class="home-slide banner d-flex align-items-center position-relative" style="height: 50vh;">
+                <swiper-slide v-for="slider in sliders" :key="slider.id" class="home-slide banner d-flex align-items-center position-relative">
                     <a v-if="slider.link" :href="slider.link" class="slider-link" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; cursor: pointer;"></a>
                     <img 
                         class="slide-bg" 
-                        style="height: 50vh !important; width: 100%; object-fit: cover; position: absolute; top: 0; left: 0;" 
                         :src="formatImagePath(slider.image)" 
                         :alt="slider.description || 'Slider'" 
                         @error="console.error('Failed to load slider image:', slider.image)"
@@ -109,7 +107,7 @@ const goToNext = () => {
         </div>
 
         <!-- Fallback static sliders if no dynamic sliders -->
-        <div v-else class="home-slider-wrapper" style="height: 50vh !important; position: relative;">
+        <div v-else class="home-slider-wrapper">
             <swiper
                 :modules="modules"
                 :slides-per-view="1"
@@ -121,15 +119,14 @@ const goToNext = () => {
                 :effect="'fade'"
                 :fade-effect="{ crossFade: true }"
                 class="home-slider-swiper"
-                style="height: 100%;"
             >
-                <swiper-slide class="home-slide home-slide1 banner d-flex align-items-center" style="height: 50vh;">
-                    <img class="slide-bg" style="height: 50vh !important; width: 100%; object-fit: cover; background-color: #ecc;" src="/front/theme1/images/demoes/demo3/slider/slide1.jpg" alt="home banner">
+                <swiper-slide class="home-slide home-slide1 banner d-flex align-items-center">
+                    <img class="slide-bg" style="background-color: #ecc;" src="/front/theme1/images/demoes/demo3/slider/slide1.jpg" alt="home banner">
                     <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
                     </div>
                 </swiper-slide>
-                <swiper-slide class="home-slide home-slide2 banner d-flex align-items-center" style="height: 50vh;">
-                    <img class="slide-bg" style="height: 50vh !important; width: 100%; object-fit: cover; background-color: #bfcec9;" src="/front/theme1/images/demoes/demo3/slider/slide2.jpg" alt="home banner">
+                <swiper-slide class="home-slide home-slide2 banner d-flex align-items-center">
+                    <img class="slide-bg" style="background-color: #bfcec9;" src="/front/theme1/images/demoes/demo3/slider/slide2.jpg" alt="home banner">
                     <div class="banner-layer appear-animate" data-animation-name="fadeInUpShorter">
                     </div>
                 </swiper-slide>
@@ -193,6 +190,7 @@ const goToNext = () => {
 .home-slider-wrapper {
     position: relative;
     width: 100%;
+    height: 50vh; /* Default height for mobile */
 }
 
 .home-slider-swiper {
@@ -202,6 +200,23 @@ const goToNext = () => {
 
 .home-slider-swiper :deep(.swiper-slide) {
     position: relative;
+    height: 100%;
+}
+
+.home-slider-swiper :deep(.slide-bg) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Desktop: Increase height */
+@media (min-width: 992px) {
+    .home-slider-wrapper {
+        height: 70vh; /* Larger height for desktop */
+    }
 }
 
 /* Slider link overlay */

@@ -111,11 +111,13 @@
 
 input[type=number] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
     -webkit-appearance: none;
+    appearance: none;
     margin: 0;
 }
 
@@ -173,34 +175,262 @@ input[type=number]::-webkit-outer-spin-button {
     color: #08C !important;
 }
 
-/* تنسيق خيارات التوصيل */
-.delivery-options {
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 20px;
-    background-color: #f8f9fa;
+/* تحسين سلة المشتريات على الموبايل */
+@media (max-width: 767px) {
+    .cart-table-container {
+        overflow-x: visible;
+    }
+
+    .table.table-cart {
+        display: block;
+        border: none;
+    }
+
+    .table.table-cart thead {
+        display: none;
+    }
+
+    .table.table-cart tbody {
+        display: block;
+    }
+
+    .table.table-cart tbody tr {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e7e7e7;
+        border-radius: 12px;
+        padding: 0.75rem;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        position: relative;
+    }
+
+    /* إخفاء الخصائص واللون على الموبايل */
+    .table.table-cart tbody tr td:nth-child(3),
+    .table.table-cart tbody tr td:nth-child(4) {
+        display: none !important;
+    }
+
+    /* الصورة */
+    .table.table-cart tbody tr td:first-child {
+        flex-shrink: 0;
+        padding: 0;
+        width: auto;
+    }
+
+    .table.table-cart .product-image-container {
+        position: relative;
+        display: block;
+    }
+
+    .table.table-cart .product-image-container .product-image {
+        display: block;
+    }
+
+    .table.table-cart .product-image-container .product-image img {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #f0f0f0;
+    }
+
+    .table.table-cart .product-image-container .btn-remove {
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        width: 24px;
+        height: 24px;
+        background: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        font-size: 16px;
+        color: #dc3545;
+        z-index: 1;
+        text-decoration: none;
+        font-weight: bold;
+        line-height: 1;
+    }
+
+    .table.table-cart .product-image-container .btn-remove:hover {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    /* إخفاء product-col داخل الصورة */
+    .table.table-cart .product-image-container .product-col {
+        display: none;
+    }
+
+    /* اسم المنتج */
+    .table.table-cart tbody tr td.product-col {
+        flex: 1;
+        padding: 0;
+        text-align: right;
+        min-width: 0;
+    }
+
+    .table.table-cart tbody tr td.product-col:before {
+        display: none;
+    }
+
+    .table.table-cart .product-title {
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #333;
+        line-height: 1.3;
+    }
+
+    .table.table-cart .product-title a {
+        color: #333;
+        text-decoration: none;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .table.table-cart .product-title a:hover {
+        color: #08C;
+    }
+
+    /* السعر */
+    .table.table-cart tbody tr td:nth-child(5) {
+        flex-shrink: 0;
+        padding: 0;
+        text-align: center;
+        min-width: 60px;
+        font-weight: 600;
+        color: #333;
+        font-size: 0.9rem;
+    }
+
+    .table.table-cart tbody tr td:nth-child(5):before {
+        display: none;
+    }
+
+    /* الكمية */
+    .table.table-cart tbody tr td:nth-child(6) {
+        flex-shrink: 0;
+        padding: 0;
+        text-align: center;
+    }
+
+    .table.table-cart tbody tr td:nth-child(6):before {
+        display: none;
+    }
+
+    .table.table-cart .custom-qty-selector {
+        margin: 0;
+        width: 90px;
+    }
+
+    /* الإجمالي */
+    .table.table-cart tbody tr td:nth-child(7) {
+        flex-shrink: 0;
+        padding: 0;
+        text-align: left;
+        min-width: 70px;
+        font-weight: 700;
+        font-size: 1rem;
+        color: #08C;
+    }
+
+    .table.table-cart tbody tr td:nth-child(7):before {
+        display: none;
+    }
+
+    .table.table-cart tbody tr td:nth-child(7) .subtotal-price {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #08C;
+    }
+
+    .table.table-cart tfoot {
+        display: block;
+        border-top: 2px solid #ddd;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+    }
+
+    .table.table-cart tfoot tr {
+        display: block;
+        border: none;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .table.table-cart tfoot tr td {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table.table-cart tfoot tr td:last-child {
+        border-bottom: none;
+    }
+
+    .cart-summary {
+        margin-top: 2rem;
+    }
 }
 
-.delivery-options .form-check {
-    padding: 12px;
-    border: 2px solid #e9ecef;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-    background-color: #fff;
-}
+/* تحسينات إضافية للشاشات الصغيرة جداً */
+@media (max-width: 479px) {
+    .table.table-cart tbody tr {
+        padding: 0.6rem;
+        gap: 0.5rem;
+    }
 
-.delivery-options .form-check:hover {
-    border-color: #667eea;
-}
+    .table.table-cart .product-image-container .product-image img {
+        width: 60px;
+        height: 60px;
+    }
 
-.delivery-options .form-check-input:checked + .form-check-label {
-    color: #667eea;
-    font-weight: 600;
-}
+    .table.table-cart .product-title {
+        font-size: 0.85rem;
+    }
 
-.delivery-options .form-check-input:checked {
-    background-color: #667eea;
-    border-color: #667eea;
+    .table.table-cart tbody tr td:nth-child(5) {
+        font-size: 0.85rem;
+        min-width: 50px;
+    }
+
+    .custom-qty-selector {
+        width: 80px;
+    }
+
+    .qty-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .qty-input {
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+    }
+
+    .table.table-cart tbody tr td:nth-child(7) {
+        font-size: 0.9rem;
+        min-width: 60px;
+    }
+
+    .table.table-cart tbody tr td:nth-child(7) .subtotal-price {
+        font-size: 0.9rem;
+    }
+
+    .table.table-cart tbody tr td:nth-child(7) .subtotal-price {
+        font-size: 1.1rem;
+    }
 }
 
 </style>
@@ -235,21 +465,21 @@ input[type=number]::-webkit-outer-spin-button {
                             </thead>
                             <tbody>
                                 <tr v-for="item in cartItemsRef" :key="item.id" class="product-row">
-                                    <td>
+                                    <td data-label="">
                                         <figure class="product-image-container">
                                             <Link :href="route('web.product', item.id)" class="product-image">
                                                 <img :src="getProductImage(item.product)" width="273" height="273" :alt="item.product.name" />
                                             </Link>
-                                            <Link :href="route('cart.remove', item.id)" class="btn-remove icon-cancel" title="Remove Product" @click.prevent="removeFromCart(item.id)"></Link>
+                                            <Link :href="route('cart.remove', item.id)" class="btn-remove icon-cancel" title="Remove Product" @click.prevent="removeFromCart(item.id)">×</Link>
                                         </figure>
                                     </td>
-                                    <td class="product-col">
+                                    <td class="product-col" data-label="المنتج:">
                                         <h5 class="product-title">
                                             <Link :href="route('web.product', item.id)">{{ item.product.name }}</Link>
                                         </h5>
                                     </td>
                                     <!-- عمود الخصائص -->
-                                    <td>
+                                    <td data-label="الخصائص:">
                                         <ul v-if="getSelectedOptions(item).length" dir="rtl" class="list-unstyled mb-0">
                                             <li v-for="opt in getSelectedOptions(item)" :key="opt.attribute_id">
                                                 <small class="text-muted">
@@ -263,7 +493,7 @@ input[type=number]::-webkit-outer-spin-button {
                                         </ul>
                                     </td>
                                     <!-- عمود اللون -->
-                                    <td>
+                                    <td data-label="اللون:">
                                         <div v-if="item.color" class="cart-color-wrapper">
                                             <span
                                                 class="cart-color-swatch"
@@ -272,15 +502,15 @@ input[type=number]::-webkit-outer-spin-button {
                                             ></span>
                                         </div>
                                     </td>
-                                    <td>{{ formatPrice(item.unit_price ?? item.product.price) }}</td>
-                                    <td>
+                                    <td data-label="السعر:">{{ formatPrice(item.unit_price ?? item.product.price) }}</td>
+                                    <td data-label="الكمية:">
                                         <div class="custom-qty-selector">
                                             <button class="qty-btn" @click.prevent="removeQty(item)">-</button>
                                             <input type="number" min="1" :value="item.quantity" class="qty-input" @change="updateQty(item, $event)" />
                                             <button class="qty-btn" @click.prevent="addQty(item)">+</button>
                                         </div>
                                     </td>
-                                    <td class="text-right">
+                                    <td class="text-right" data-label="الإجمالي:">
                                         <span class="subtotal-price">
                                             {{ formatPrice((item.unit_price ?? item.product.price) * item.quantity) }}
                                         </span>
@@ -298,45 +528,18 @@ input[type=number]::-webkit-outer-spin-button {
                             ابدأ التسوق الآن
                         </Link>
                     </div>
+
+                    <!-- زر متابعة التسوق -->
+                    <div v-if="cartItemsRef.length" class="mt-4 mb-3">
+                        <Link :href="route('web.products')" class="btn btn-outline-primary w-100">
+                            <i class="icon-cart me-2"></i>
+                            متابعة التسوق
+                        </Link>
+                    </div>
                 </div><!-- End .col-lg-8 -->
 
                 <div class="col-lg-4">
                     <div class="cart-summary">
-                        <!-- اختيار نوع التوصيل -->
-                        <div class="delivery-options mb-4">
-                            <h4 class="mb-3">اختر نوع الاستلام</h4>
-                            <div class="form-check mb-2">
-                                <input 
-                                    class="form-check-input" 
-                                    type="radio" 
-                                    name="deliveryType" 
-                                    id="delivery" 
-                                    value="delivery" 
-                                    v-model="deliveryType"
-                                />
-                                <label class="form-check-label" for="delivery">
-                                    <i class="icon-truck" style="margin-left: 8px;"></i>
-                                    توصيل 
-                                    <small class="d-block text-muted">رسوم التوصيل: {{ (props.shippingCost || 15).toFixed(2) }} جنيه</small>
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input 
-                                    class="form-check-input" 
-                                    type="radio" 
-                                    name="deliveryType" 
-                                    id="pickup" 
-                                    value="pickup" 
-                                    v-model="deliveryType"
-                                />
-                                <label class="form-check-label" for="pickup">
-                                    <i class="icon-store mr-4" style="margin-left: 8px;"></i>
-                                    استلام من المخزن
-                                    <small class="d-block text-muted">مجاني</small>
-                                </label>
-                            </div>
-                        </div>
-
                         <h3> إجمالي الفاتورة </h3>
 
                         <table class="table table-totals">
@@ -346,14 +549,14 @@ input[type=number]::-webkit-outer-spin-button {
                                     <td>{{ Number(subtotal).toFixed(2) }} جنيه</td>
                                 </tr>
                                 <tr>
-                                    <td>{{ deliveryType === 'delivery' ? 'رسوم التوصيل' : 'رسوم الاستلام' }}</td>
-                                    <td>{{ shippingCost.toFixed(2) }} جنيه</td>
+                                    <td>رسوم التوصيل</td>
+                                    <td>{{ (props.shippingCost || 15).toFixed(2) }} جنيه</td>
                                 </tr>
                             </tbody>
                             <tfoot>
                                 <tr>
                                     <td>الإجمالي</td>
-                                    <td>{{ Number(total).toFixed(2) }} جنيه</td>
+                                    <td>{{ Number(subtotal + (props.shippingCost || 15)).toFixed(2) }} جنيه</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -610,27 +813,113 @@ const total = computed(() => {
     return subtotal.value + shippingCost.value;
 });
 
-// دالة لإنشاء الأوردر مباشرة عند الضغط على زر المتابعة
+// دالة لإنشاء الأوردر مع إظهار Modal لاختيار نوع التوصيل
 const createOrder = () => {
-    router.post(route('order.create'), {
-        items: cartItemsRef.value,
-        total: total.value,
-        delivery_type: deliveryType.value
-    }, {
-        onSuccess: () => {
-            Swal.fire({
-                icon: 'success',
-                title: 'تم إنشاء الطلب بنجاح',
-                showConfirmButton: false,
-                timer: 2000
-            }); 
+    // إظهار Modal لاختيار نوع التوصيل
+    Swal.fire({
+        title: 'اختر نوع الاستلام',
+        html: `
+            <div class="delivery-options-modal" style="text-align: right; margin-top: 1rem;">
+                <div class="form-check" style="padding: 12px; border: 2px solid #e9ecef; border-radius: 6px; margin-bottom: 10px; background: #fff; cursor: pointer;" id="delivery-option">
+                    <input class="form-check-input" type="radio" name="deliveryTypeModal" id="deliveryModal" value="delivery" checked style="cursor: pointer;">
+                    <label class="form-check-label" for="deliveryModal" style="cursor: pointer; width: 100%;">
+                        <i class="icon-truck" style="margin-left: 8px;"></i>
+                        <strong>توصيل</strong>
+                        <small class="d-block text-muted" style="margin-top: 5px;">رسوم التوصيل: ${(props.shippingCost || 15).toFixed(2)} جنيه</small>
+                    </label>
+                </div>
+                <div class="form-check" style="padding: 12px; border: 2px solid #e9ecef; border-radius: 6px; background: #fff; cursor: pointer;" id="pickup-option">
+                    <input class="form-check-input" type="radio" name="deliveryTypeModal" id="pickupModal" value="pickup" style="cursor: pointer;">
+                    <label class="form-check-label" for="pickupModal" style="cursor: pointer; width: 100%;">
+                        <i class="icon-store" style="margin-left: 8px;"></i>
+                        <strong>استلام من المخزن</strong>
+                        <small class="d-block text-muted" style="margin-top: 5px;">مجاني</small>
+                    </label>
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'تأكيد الطلب',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#08C',
+        cancelButtonColor: '#6c757d',
+        didOpen: () => {
+            // إضافة event listeners للخيارات
+            const deliveryOption = document.getElementById('delivery-option');
+            const pickupOption = document.getElementById('pickup-option');
+            const deliveryRadio = document.getElementById('deliveryModal');
+            const pickupRadio = document.getElementById('pickupModal');
+
+            if (deliveryOption && pickupOption) {
+                deliveryOption.addEventListener('click', () => {
+                    deliveryRadio.checked = true;
+                    deliveryOption.style.borderColor = '#08C';
+                    pickupOption.style.borderColor = '#e9ecef';
+                });
+
+                pickupOption.addEventListener('click', () => {
+                    pickupRadio.checked = true;
+                    pickupOption.style.borderColor = '#08C';
+                    deliveryOption.style.borderColor = '#e9ecef';
+                });
+
+                // تحديث الحدود عند التغيير
+                deliveryRadio.addEventListener('change', () => {
+                    if (deliveryRadio.checked) {
+                        deliveryOption.style.borderColor = '#08C';
+                        pickupOption.style.borderColor = '#e9ecef';
+                    }
+                });
+
+                pickupRadio.addEventListener('change', () => {
+                    if (pickupRadio.checked) {
+                        pickupOption.style.borderColor = '#08C';
+                        deliveryOption.style.borderColor = '#e9ecef';
+                    }
+                });
+
+                // تعيين الحدود الأولية
+                deliveryOption.style.borderColor = '#08C';
+            }
         },
-        onError: () => {
-            Swal.fire({
-                icon: 'error',
-                title: 'حدث خطأ أثناء إنشاء الطلب',
-                showConfirmButton: false,
-                timer: 2000
+        preConfirm: () => {
+            const selectedType = document.querySelector('input[name="deliveryTypeModal"]:checked')?.value;
+            if (!selectedType) {
+                Swal.showValidationMessage('يرجى اختيار نوع الاستلام');
+                return false;
+            }
+            return selectedType;
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            const selectedDeliveryType = result.value;
+            
+            // إرسال الطلب مع نوع التوصيل المختار
+            router.post(route('order.create'), {
+                items: cartItemsRef.value,
+                total: total.value,
+                delivery_type: selectedDeliveryType
+            }, {
+                onSuccess: () => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم إنشاء الطلب بنجاح',
+                        text: 'شكراً لك على طلبك!',
+                        showConfirmButton: true,
+                        confirmButtonText: 'حسناً'
+                    }); 
+                },
+                onError: (errors) => {
+                    const errorMessage = errors.message || 'حدث خطأ أثناء إنشاء الطلب';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: errorMessage,
+                        showConfirmButton: true,
+                        confirmButtonText: 'حسناً'
+                    });
+                }
             });
         }
     });

@@ -324,6 +324,66 @@ function getProductImage(product) {
             </div>
           </div>
 
+          <!-- بيانات العميل -->
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header no-print">
+                <h5 class="card-title mb-0">بيانات العميل</h5>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-4 col-6 mb-3">
+                    <strong>اسم العميل:</strong>
+                    <div>{{ order.user?.name || 'غير محدد' }}</div>
+                  </div>
+                  <div class="col-md-4 col-6 mb-3" v-if="order.user?.phone">
+                    <strong>رقم الهاتف:</strong>
+                    <div>
+                      <i class="bi bi-telephone me-1"></i>
+                      <a :href="`tel:${order.user.phone}`" class="text-decoration-none">{{ order.user.phone }}</a>
+                    </div>
+                  </div>
+                  <div class="col-md-4 col-6 mb-3" v-if="order.user?.email">
+                    <strong>البريد الإلكتروني:</strong>
+                    <div>
+                      <i class="bi bi-envelope me-1"></i>
+                      <a :href="`mailto:${order.user.email}`" class="text-decoration-none">{{ order.user.email }}</a>
+                    </div>
+                  </div>
+                  <div class="col-md-6 col-12 mb-3" v-if="order.billing_address?.address || order.shipping_address?.address">
+                    <strong>العنوان:</strong>
+                    <div v-if="order.billing_address?.address">
+                      <i class="bi bi-geo-alt me-1"></i>
+                      {{ order.billing_address.address }}
+                      <span v-if="order.billing_address.city"> - {{ order.billing_address.city }}</span>
+                      <span v-if="order.billing_address.state">، {{ order.billing_address.state }}</span>
+                      <span v-if="order.billing_address.postal_code"> - {{ order.billing_address.postal_code }}</span>
+                      <span v-if="order.billing_address.country"> - {{ order.billing_address.country }}</span>
+                    </div>
+                    <div v-else-if="order.shipping_address?.address">
+                      <i class="bi bi-geo-alt me-1"></i>
+                      {{ order.shipping_address.address }}
+                      <span v-if="order.shipping_address.city"> - {{ order.shipping_address.city }}</span>
+                      <span v-if="order.shipping_address.state">، {{ order.shipping_address.state }}</span>
+                      <span v-if="order.shipping_address.postal_code"> - {{ order.shipping_address.postal_code }}</span>
+                      <span v-if="order.shipping_address.country"> - {{ order.shipping_address.country }}</span>
+                    </div>
+                  </div>
+                  <div class="col-md-6 col-12 mb-3" v-if="order.user?.location_url">
+                    <strong>الموقع (Google Maps):</strong>
+                    <div>
+                      <i class="bi bi-geo-alt-fill me-1 text-danger"></i>
+                      <a :href="order.user.location_url" target="_blank" class="text-decoration-none">
+                        عرض الموقع على الخريطة
+                        <i class="bi bi-box-arrow-up-right ms-1"></i>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- إدارة الحالات -->
           <div class="col-12 no-print">
             <div class="card">

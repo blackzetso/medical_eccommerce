@@ -66,8 +66,12 @@ class ClientAccountController extends Controller
             return $sum + ($unit * $item->quantity);
         }, 0);
 
-        // توليد رقم طلب فريد
-        $orderNumber = 'ORD-' . strtoupper(uniqid()) . '-' . rand(1000,9999);
+        // توليد رقم طلب فريد (تسلسلي بسيط)
+        // الحصول على آخر رقم طلب لتوليد رقم جديد
+        $lastOrder = Order::orderBy('id', 'desc')->first();
+        $lastOrderId = $lastOrder ? $lastOrder->id : 0;
+        // رقم الطلب يبدأ من 100000
+        $orderNumber = str_pad(100000 + $lastOrderId + 1, 6, '0', STR_PAD_LEFT);
 
         // إعداد الحقول المطلوبة
         $deliveryType = $request->input('delivery_type', 'delivery');

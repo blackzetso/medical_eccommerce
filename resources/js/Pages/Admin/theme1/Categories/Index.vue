@@ -36,21 +36,47 @@ const props = defineProps({
 function confirmDelete(id) {
   Swal.fire({
     title: 'هل أنت متأكد؟',
-    text: "لن تتمكن من التراجع عن هذا الإجراء!",
+    text: 'يرجى إدخال كلمة مرور الأدمن للمتابعة',
     icon: 'warning',
+    input: 'password',
+    inputPlaceholder: 'كلمة المرور',
+    inputAttributes: {
+      autocapitalize: 'off',
+      autocorrect: 'off',
+      autocomplete: 'new-password',
+      name: 'admin-password-delete-' + Date.now(),
+      id: 'swal-password-' + Date.now()
+    },
     showCancelButton: true,
     confirmButtonColor: '#d33',
     cancelButtonColor: '#3085d6',
     confirmButtonText: 'نعم، احذف',
-    cancelButtonText: 'إلغاء'
+    cancelButtonText: 'إلغاء',
+    inputValidator: (value) => {
+      if (!value) {
+        return 'يجب إدخال كلمة المرور'
+      }
+    },
+    didOpen: () => {
+      // إزالة focus من أي حقول أخرى لمنع auto-fill
+      const searchInput = document.querySelector('input[name="search"]')
+      if (searchInput) {
+        searchInput.blur()
+        searchInput.value = search.value || ''
+      }
+    }
   }).then((result) => {
     if (result.isConfirmed) {
       router.delete(route('admin.categories.destroy', id), {
+        data: {
+          password: result.value
+        },
         onSuccess: () => {
           Swal.fire('تم الحذف!', 'تم حذف القسم بنجاح.', 'success')
         },
-        onError: () => {
-          Swal.fire('خطأ!', 'حدثت مشكلة أثناء الحذف.', 'error')
+        onError: (errors) => {
+          const errorMessage = errors.password?.[0] || errors.message || 'حدثت مشكلة أثناء الحذف.'
+          Swal.fire('خطأ!', errorMessage, 'error')
         }
       })
     }
@@ -106,6 +132,7 @@ watch(search, (value) => {
             class="form-control"
             v-model="search"
             name="search"
+            autocomplete="off"
             placeholder="ابحث عن قسم..."
           />
         </div>

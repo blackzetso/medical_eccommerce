@@ -5,6 +5,7 @@ import { route } from 'ziggy-js';
 import FrontLayout from '@/Pages/Front/Theme1/Layout/App.vue';
 import VueEasyLightbox from 'vue-easy-lightbox';
 import { useTranslations } from '@/composables/translations';
+import Swal from 'sweetalert2';
 
 const { t } = useTranslations();
 const props = defineProps({
@@ -423,21 +424,25 @@ const decreaseQuantity = () => {
 const addToCart = (product) => {
     // التحقق من المخزون
     if (!isProductAvailable.value) {
-        if (window.$toast) {
-            window.$toast.error(t('product_not_available_in_stock'));
-        } else {
-            alert(t('product_not_available_in_stock'));
-        }
+        Swal.fire({
+            icon: 'warning',
+            title: 'هذا المنتج غير متوفر حاليًا',
+            text: t('product_not_available_in_stock'),
+            confirmButtonText: 'حسناً',
+            confirmButtonColor: '#08C'
+        });
         return;
     }
     
     // التحقق من الخصائص - سيتم التحقق في الـ controller أيضاً
     if (!areAllAttributesSelected.value) {
-        if (window.$toast) {
-            window.$toast.error(t('please_select_all_required_attributes'));
-        } else {
-            alert(t('please_select_all_required_attributes'));
-        }
+        Swal.fire({
+            icon: 'warning',
+            title: 'يرجى تحديد جميع الخصائص',
+            text: t('please_select_all_required_attributes'),
+            confirmButtonText: 'حسناً',
+            confirmButtonColor: '#08C'
+        });
         return;
     }
     
@@ -474,17 +479,34 @@ const sendToCart = (product, attributes) => {
             let errorMessage = t('error_adding_to_cart');
             
             if (errors.message) {
-                errorMessage = errors.message;
+                if (Array.isArray(errors.message)) {
+                    errorMessage = errors.message[0];
+                } else {
+                    errorMessage = errors.message;
+                }
             } else if (typeof errors === 'string') {
                 errorMessage = errors;
             } else if (errors && Object.keys(errors).length > 0) {
                 errorMessage = Object.values(errors)[0];
             }
             
-            if (window.$toast) {
-                window.$toast.error(errorMessage);
+            // استخدام SweetAlert لعرض رسالة خطأ واضحة بدلاً من Toast
+            if (errorMessage.includes('غير متوفر') || errorMessage.includes('المخزون') || errorMessage.includes('غير متوفر في المخزون')) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'هذا المنتج غير متوفر حاليًا',
+                    text: errorMessage,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#08C'
+                });
             } else {
-                alert(errorMessage);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: errorMessage,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#08C'
+                });
             }
             
             // إذا كان الخطأ بسبب عدم تسجيل الدخول، إعادة توجيه إلى صفحة تسجيل الدخول
@@ -718,16 +740,51 @@ onMounted(() => {
                                     </li>
                                     <li>
                                         <span>المخزون:</span>
-                                        <template v-if="hasAttributes && areAllAttributesSelected">
-                                            <strong v-if="getSelectedAttributesStock !== null && getSelectedAttributesStock > 0">
-                                                {{ getSelectedAttributesStock }} (مخزون الخصائص المحددة)
+                                        <!-- حالة التوفر والمخزون -->
+                                        <template v-if="product.manage_stock">
+                                            <!-- إذا كان المنتج له خصائص -->
+                                            <template v-if="hasAttributes && areAllAttributesSelected">
+                                                <div v-if="getSelectedAttributesStock !== null && getSelectedAttributesStock > 0" 
+                                                     style="display: inline-block; background: #d4edda; border: 2px solid #28a745; color: #155724; padding: 8px 16px; border-radius: 6px; margin-right: 8px;">
+                                                    <strong style="font-size: 1.2rem; font-weight: 700;">
+                                                        <i class="icon-check-circle" style="margin-left: 6px;"></i>
+                                                        متوفر - المخزون: {{ getSelectedAttributesStock }} قطعة
+                                                    </strong>
+                                                </div>
+                                                <div v-else 
+                                                     style="display: inline-block; background: #f8d7da; border: 2px solid #dc3545; color: #721c24; padding: 8px 16px; border-radius: 6px; margin-right: 8px;">
+                                                    <strong style="font-size: 1.2rem; font-weight: 700;">
+                                                        <span style="margin-left: 6px; font-size: 1.3rem;">✕</span>
+                                                        المنتج غير متوفر
+                                                    </strong>
+                                                </div>
+                                            </template>
+                                            <!-- إذا لم يكن للمنتج خصائص أو لم يتم تحديدها -->
+                                            <template v-else>
+                                                <div v-if="product.stock_quantity && product.stock_quantity > 0" 
+                                                     style="display: inline-block; background: #d4edda; border: 2px solid #28a745; color: #155724; padding: 8px 16px; border-radius: 6px; margin-right: 8px;">
+                                                    <strong style="font-size: 1.2rem; font-weight: 700;">
+                                                        <i class="icon-check-circle" style="margin-left: 6px;"></i>
+                                                        متوفر - المخزون: {{ product.stock_quantity }} قطعة
+                                                    </strong>
+                                                </div>
+                                                <div v-else 
+                                                     style="display: inline-block; background: #f8d7da; border: 2px solid #dc3545; color: #721c24; padding: 8px 16px; border-radius: 6px; margin-right: 8px;">
+                                                    <strong style="font-size: 1.2rem; font-weight: 700;">
+                                                        <span style="margin-left: 6px; font-size: 1.3rem;">✕</span>
+                                                        المنتج غير متوفر
+                                                    </strong>
+                                                </div>
+                                            </template>
+                                        </template>
+                                        <!-- إذا كان المنتج لا يدير المخزون -->
+                                        <div v-else 
+                                             style="display: inline-block; background: #d4edda; border: 2px solid #28a745; color: #155724; padding: 8px 16px; border-radius: 6px; margin-right: 8px;">
+                                            <strong style="font-size: 1.2rem; font-weight: 700;">
+                                                <i class="icon-check-circle" style="margin-left: 6px;"></i>
+                                                متوفر - مخزون غير محدود
                                             </strong>
-                                            <strong v-else class="text-danger">غير متوفر</strong>
-                                        </template>
-                                        <template v-else>
-                                            <strong v-if="product.stock_quantity && product.stock_quantity > 0">{{ product.stock_quantity }}</strong>
-                                            <strong v-else class="text-danger">غير متوفر</strong>
-                                        </template>
+                                        </div>
                                     </li>
                                 </ul>
 
