@@ -23,6 +23,7 @@ use App\Http\Controllers\admin\RoleController;
 use App\Http\Controllers\admin\ReportController;
 use App\Http\Controllers\admin\StaffController;
 use App\Http\Controllers\MigrateController;
+use App\Http\Controllers\Api\IntegrationTokenController;
 
 
 // Admin Login
@@ -181,6 +182,9 @@ Route::middleware([
         Route::post('/privacy/update', [SettingController::class, 'updatePrivacy'])->name('privacy.update');
         Route::post('/terms/update', [SettingController::class, 'updateTerms'])->name('terms.update');
         Route::post('/refund/update', [SettingController::class, 'updateRefund'])->name('refund.update');
+
+        // Generate Sanctum token from dashboard (admin session).
+        Route::post('/integration/token', [IntegrationTokenController::class, 'store'])->name('integration.token');
     });
     Route::resource('language', LanguageController::class);
     Route::patch('/language/{id}/status', [LanguageController::class, 'toggleStatus'])->name('language.status');

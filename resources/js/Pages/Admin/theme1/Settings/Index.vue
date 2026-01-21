@@ -6,6 +6,7 @@ import { Head, useForm } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import Swal from 'sweetalert2'
 import { toast } from 'vue3-toastify'
+import axios from 'axios'
 
 const props = defineProps({
   settings: Object
@@ -26,6 +27,10 @@ const form = useForm({
   }
 })
 
+const tokenName = ref('erp-sync')
+const generatedToken = ref('')
+const generating = ref(false)
+
 function submit() {
   form.put(route('admin.settings.update'), {
     onSuccess: () => {
@@ -35,6 +40,26 @@ function submit() {
       })
     }
   })
+}
+
+async function generateToken() {
+  try {
+    generating.value = true
+    generatedToken.value = ''
+    const response = await axios.post(route('admin.settings.integration.token'), {
+      name: tokenName.value || 'erp-sync'
+    })
+    generatedToken.value = response.data.token
+    toast.success('تم إنشاء التوكن بنجاح. انسخه واحفظه في مكان آمن.', {
+      position: "top-right",
+      autoClose: 3000,
+    })
+  } catch (error) {
+    const message = error.response?.data?.message || 'فشل إنشاء التوكن'
+    toast.error(message, { position: "top-right" })
+  } finally {
+    generating.value = false
+  }
 }
 </script>
 
@@ -108,6 +133,37 @@ function submit() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+
+          <div class="card shadow mt-4">
+            <div class="card-header border-bottom p-4 d-flex align-items-center justify-content-between">
+              <h5 class="card-header-title mb-0">توكن تكامل الـ ERP</h5>
+              <small class="text-muted">يُستخدم في Authorization: Bearer</small>
+            </div>
+            <div class="card-body p-4">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">اسم التوكن (اختياري)</label>
+                  <input type="text" class="form-control" v-model="tokenName" placeholder="erp-sync" />
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                  <button class="btn btn-outline-primary ms-auto" :disabled="generating" @click="generateToken">
+                    <span v-if="generating" class="spinner-border spinner-border-sm me-2"></span>
+                    توليد توكن جديد
+                  </button>
+                </div>
+                <div class="col-12" v-if="generatedToken">
+                  <label class="form-label">التوكن (انسخه واحتفظ به)</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" :value="generatedToken" readonly>
+                    <button class="btn btn-outline-secondary" type="button" @click="navigator.clipboard.writeText(generatedToken)">
+                      نسخ
+                    </button>
+                  </div>
+                  <small class="text-muted">يظهر مرة واحدة. خزّنه في مكان آمن.</small>
+                </div>
+              </div>
             </div>
           </div>
         </div>
