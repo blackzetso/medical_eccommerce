@@ -5,6 +5,8 @@ namespace App\Providers;
 use Inertia\Inertia;
 use App\Models\Language;
 use App\Models\LanguagePhrase;
+use App\Models\Order;
+use App\Observers\OrderObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
@@ -27,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Order::observe(OrderObserver::class);
+
         // Customize route model binding for Role
         // Try 'web' guard first, then fallback to any guard
         Route::bind('role', function ($value) {

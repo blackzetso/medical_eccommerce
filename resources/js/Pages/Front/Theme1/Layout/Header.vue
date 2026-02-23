@@ -163,13 +163,13 @@ watch(() => page.url, () => {
 const handleSearch = () => {
     if (searchQuery.value.trim()) {
         router.get(route('web.products'), { search: searchQuery.value.trim() }, {
-            preserveState: true,
+            preserveState: false,
             preserveScroll: true,
         })
     } else {
         // If search is empty, go to products without search
         router.get(route('web.products'), {}, {
-            preserveState: true,
+            preserveState: false,
             preserveScroll: true,
         })
     }

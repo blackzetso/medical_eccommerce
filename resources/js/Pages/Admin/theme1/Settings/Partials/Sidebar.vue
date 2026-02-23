@@ -61,6 +61,11 @@
                 </Link>
             </li>
             <li class="nav-item">
+                <Link class="nav-link" :href="route('admin.settings.integration')" :class="{ active: route().current('admin.settings.integration') }">
+                    <i class="fas fa-plug fa-fw me-2"></i>تكامل OrgaSoft
+                </Link>
+            </li>
+            <li class="nav-item">
                 <Link class="nav-link mb-0" :href="route('admin.language.index')" :class="{ active: route().current('admin.language.index') }">
                     <i class="fas fa-globe fa-fw me-2"></i>{{ t('languages') }}
                 </Link>

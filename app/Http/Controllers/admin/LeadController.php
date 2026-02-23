@@ -68,6 +68,7 @@ class LeadController extends Controller
         }
 
         $request->validate([
+            'orgasoft_id' => 'required|string',
             'password' => 'required|min:6',
         ]);
 
@@ -79,6 +80,7 @@ class LeadController extends Controller
             'password' => Hash::make($request->password),
             'user_type' => 'client',
             'location_url' => $lead->location_url,
+            'orgasoft_id' => $request->orgasoft_id,
             'email_verified_at' => now(),
         ]);
 

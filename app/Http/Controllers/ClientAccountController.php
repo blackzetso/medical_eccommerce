@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Services\OrgaSoftService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -145,6 +146,27 @@ class ClientAccountController extends Controller
                     }
                 }
             }
+        }
+
+        // إرسال الفاتورة لسيستم الديسكتوب OrgaSoft (بعد حفظ كل عناصر الطلب)
+        try {
+            $orgaSoft = app(OrgaSoftService::class);
+            if ($orgaSoft->isEnabled()) {
+                $order->load(['user', 'items.product']);
+                $result = $orgaSoft->postInvoice($order);
+                if (!$result['success']) {
+                    \Illuminate\Support\Facades\Log::warning('OrgaSoft: فشل إرسال الفاتورة بعد إنشاء الطلب من الموقع', [
+                        'order_id' => $order->id,
+                        'status'   => $result['status'] ?? null,
+                        'body'     => $result['body'] ?? null,
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('OrgaSoft: فشل إرسال الفاتورة بعد إنشاء الطلب من الموقع', [
+                'order_id' => $order->id,
+                'error'    => $e->getMessage(),
+            ]);
         }
 
         // حذف السلة بعد الإنشاء

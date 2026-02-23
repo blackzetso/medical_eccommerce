@@ -34,6 +34,7 @@ class User extends Authenticatable
         'phone',
         'user_type',
         'location_url',
+        'orgasoft_id',
     ];
 
     /**

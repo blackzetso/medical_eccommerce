@@ -30,6 +30,9 @@ class WebController extends Controller
             ->whereNull('parent_id')
             ->get();
 
+        // تشخيص: إزالة التعليق للتأكد من بيانات الأقسام من السيرفر ([] = فارغ، بيانات = مصدر آخر)
+        // dd($categories);
+
         return Inertia::render('Front/Theme1/Index', [
             'sliders' => $sliders,
             'categories' => $categories

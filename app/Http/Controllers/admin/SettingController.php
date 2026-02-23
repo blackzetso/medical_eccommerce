@@ -251,4 +251,44 @@ class SettingController extends Controller
 
         return back()->with('success', 'تم تحديث محتوى صفحة سياسة الاسترداد بنجاح');
     }
+
+    /**
+     * إعدادات التكامل مع سيستم الديسكتوب OrgaSoft
+     */
+    public function integration()
+    {
+        $settings = Setting::whereIn('key', [
+            'orgasoft_enabled',
+            'orgasoft_url',
+            'orgasoft_api_key',
+            'orgasoft_account_id',
+        ])->pluck('value', 'key')->toArray();
+
+        return Inertia::render('Admin/theme1/Settings/Integration', [
+            'settings' => $settings,
+        ]);
+    }
+
+    /**
+     * تحديث إعدادات التكامل مع OrgaSoft
+     */
+    public function updateIntegration(Request $request)
+    {
+        $request->validate([
+            'settings'                   => 'required|array',
+            'settings.orgasoft_url'      => 'required|url',
+            'settings.orgasoft_api_key'  => 'required|string',
+            'settings.orgasoft_account_id' => 'nullable|string',
+            'settings.orgasoft_enabled'  => 'nullable',
+        ]);
+
+        foreach ($request->settings as $key => $value) {
+            Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value ?? '']
+            );
+        }
+
+        return back()->with('success', 'تم تحديث إعدادات التكامل بنجاح');
+    }
 }

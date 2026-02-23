@@ -35,8 +35,14 @@ function convertToUser(leadId) {
   Swal.fire({
     title: 'تحويل إلى حساب عميل',
     html: `
-      <p>سيتم إنشاء حساب جديد للعميل. يرجى إدخال كلمة المرور:</p>
-      <input type="password" id="password" class="swal2-input" placeholder="كلمة المرور" required>
+      <div style="text-align:right; margin-bottom:4px;">
+        <label for="orgasoft_id" style="font-weight:600;">كود العميل في أورجا سوفت</label>
+      </div>
+      <input type="text" id="orgasoft_id" class="swal2-input" autocomplete="off" name="orgasoft_id_field">
+      <div style="text-align:right; margin-top:12px; margin-bottom:4px;">
+        <label for="password" style="font-weight:600;">كلمة المرور</label>
+      </div>
+      <input type="password" id="password" class="swal2-input" autocomplete="new-password" name="new_password_field">
     `,
     icon: 'question',
     showCancelButton: true,
@@ -45,23 +51,29 @@ function convertToUser(leadId) {
     confirmButtonText: 'تحويل',
     cancelButtonText: 'إلغاء',
     preConfirm: () => {
+      const orgasoft_id = Swal.getPopup().querySelector('#orgasoft_id').value
       const password = Swal.getPopup().querySelector('#password').value
+      if (!orgasoft_id) {
+        Swal.showValidationMessage('كود العميل في أورجا سوفت مطلوب')
+        return false
+      }
       if (!password || password.length < 6) {
         Swal.showValidationMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
         return false
       }
-      return { password }
+      return { orgasoft_id, password }
     }
   }).then((result) => {
     if (result.isConfirmed) {
       router.post(route('admin.leads.convert', leadId), {
+        orgasoft_id: result.value.orgasoft_id,
         password: result.value.password
       }, {
         onSuccess: () => {
           Swal.fire('نجح!', 'تم تحويل الـ lead إلى حساب عميل بنجاح', 'success')
         },
         onError: (errors) => {
-          Swal.fire('خطأ!', errors.password || 'حدثت مشكلة أثناء التحويل', 'error')
+          Swal.fire('خطأ!', errors.orgasoft_id || errors.password || 'حدثت مشكلة أثناء التحويل', 'error')
         }
       })
     }

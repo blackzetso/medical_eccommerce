@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryApiController;
+use App\Http\Controllers\Api\DesktopOrderController;
 use App\Http\Controllers\Api\RegisterApiController;
 use App\Http\Controllers\Api\SyncEventController;
 use App\Http\Controllers\Api\IntegrationTokenController;
@@ -10,6 +11,12 @@ use App\Http\Controllers\Api\IntegrationTokenController;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+// Desktop (OrgaSoft) integration endpoints — authenticated via API-KEY header
+Route::middleware('orgasoft.apikey')->prefix('desktop')->group(function () {
+    Route::post('/order', [DesktopOrderController::class, 'store']);
+    Route::get('/orders', [DesktopOrderController::class, 'index']);
+});
 
 Route::post('/register', [RegisterApiController::class, 'register']);
 Route::get('/categories', [RegisterApiController::class, 'index']);

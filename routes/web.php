@@ -185,6 +185,10 @@ Route::middleware([
 
         // Generate Sanctum token from dashboard (admin session).
         Route::post('/integration/token', [IntegrationTokenController::class, 'store'])->name('integration.token');
+
+        // OrgaSoft desktop integration settings
+        Route::get('/integration', [SettingController::class, 'integration'])->name('integration');
+        Route::put('/integration/update', [SettingController::class, 'updateIntegration'])->name('integration.update');
     });
     Route::resource('language', LanguageController::class);
     Route::patch('/language/{id}/status', [LanguageController::class, 'toggleStatus'])->name('language.status');
