@@ -16,37 +16,36 @@ use Illuminate\Support\Str;
 
 class SyncEventService
 {
-    public function ingest(string $eventType, array $data, string $idempotencyKey, string $path, string $method): array
+    public function ingest(string $eventType, array $data, ?string $idempotencyKey, string $path, string $method): array
     {
-        $bodyHash = hash('sha256', json_encode($data));
-        $existingKey = IdempotencyKey::find($idempotencyKey);
+        // Skip idempotency entirely when no Idempotency-Key header was sent.
+        if ($idempotencyKey !== null) {
+            $bodyHash = hash('sha256', json_encode($data));
+            $existingKey = IdempotencyKey::find($idempotencyKey);
 
-        if ($existingKey) {
-            if ($existingKey->body_hash !== $bodyHash) {
-                return [
-                    'status' => 409,
-                    'response' => [
-                        'message' => 'Idempotency conflict: body differs for the same key.',
-                    ],
-                ];
+            if ($existingKey) {
+                if ($existingKey->body_hash === $bodyHash) {
+                    // Exact same request already processed — return cached response.
+                    return [
+                        'status' => 200,
+                        'response' => array_merge(
+                            $existingKey->response ?? [],
+                            ['duplicate' => true]
+                        ),
+                    ];
+                }
+                // Body changed for the same key — delete old record and re-process.
+                $existingKey->delete();
             }
 
-            return [
-                'status' => 200,
-                'response' => array_merge(
-                    $existingKey->response ?? [],
-                    ['duplicate' => true]
-                ),
-            ];
+            IdempotencyKey::create([
+                'key' => $idempotencyKey,
+                'method' => $method,
+                'path' => $path,
+                'body_hash' => $bodyHash,
+                'response' => null,
+            ]);
         }
-
-        IdempotencyKey::create([
-            'key' => $idempotencyKey,
-            'method' => $method,
-            'path' => $path,
-            'body_hash' => $bodyHash,
-            'response' => null,
-        ]);
 
         $log = EventLog::create([
             'external_id' => $data['external_id'],
@@ -57,7 +56,32 @@ class SyncEventService
         ]);
 
         // Process synchronously so the request completes with result without depending on queue worker.
-        $this->processByLogId($log->id);
+        try {
+            $this->processByLogId($log->id);
+        } catch (\Throwable $e) {
+            // processByLogId already saved the error on the log; return a graceful error response.
+            if ($idempotencyKey !== null) {
+                IdempotencyKey::where('key', $idempotencyKey)->update([
+                    'response' => [
+                        'processed' => false,
+                        'event_type' => $eventType,
+                        'event_status' => 'failed',
+                        'error' => $e->getMessage(),
+                    ],
+                ]);
+            }
+
+            return [
+                'status' => 500,
+                'response' => [
+                    'processed' => false,
+                    'external_id' => $data['external_id'],
+                    'event_type' => $eventType,
+                    'event_status' => 'failed',
+                    'error' => $e->getMessage(),
+                ],
+            ];
+        }
 
         $log->refresh();
         $response = [
@@ -68,7 +92,9 @@ class SyncEventService
             'event_status' => $log->status,
         ];
 
-        IdempotencyKey::where('key', $idempotencyKey)->update(['response' => $response]);
+        if ($idempotencyKey !== null) {
+            IdempotencyKey::where('key', $idempotencyKey)->update(['response' => $response]);
+        }
 
         return [
             'status' => 200,
@@ -155,6 +181,9 @@ class SyncEventService
             if (!empty($payload['remote_product_id'])) {
                 $this->ensureExternalReference('product', $product->id, $payload['remote_product_id'], $sourceSystem);
             }
+
+            // Re-aggregate price and stock from variants so the storefront stays consistent.
+            $this->syncProductFromVariants($product);
 
             return [
                 'status' => 'processed',
