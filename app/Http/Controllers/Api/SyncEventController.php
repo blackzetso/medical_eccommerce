@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Str;
 use App\Http\Requests\Sync\PriceUpdateEventRequest;
 use App\Http\Requests\Sync\ProductUpdateEventRequest;
 use App\Http\Requests\Sync\StockUpdateEventRequest;
@@ -138,13 +139,9 @@ class SyncEventController extends Controller
 
     private function respond(string $eventType, Request $request): JsonResponse
     {
-        $idempotencyKey = $request->header('Idempotency-Key') ?? $request->input('external_id');
-
-        if (!$idempotencyKey) {
-            return response()->json([
-                'message' => 'Idempotency-Key header is required.',
-            ], 400);
-        }
+        // Only use idempotency when the caller explicitly sends the header.
+        // Without it (e.g. Postman tests), pass null to skip deduplication entirely.
+        $idempotencyKey = $request->header('Idempotency-Key');
 
         $result = $this->service->ingest(
             $eventType,
