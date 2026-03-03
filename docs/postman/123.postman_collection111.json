@@ -1,0 +1,88 @@
+{
+	"info": {
+		"_postman_id": "810c9193-3b4c-4fb9-87fd-ef25ba20a7b5",
+		"name": "123",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "47581858",
+		"_collection_link": "https://mohamed-walied-121212-9920084.postman.co/workspace/esb~e18a58d3-d8cc-4858-842f-aba431555468/collection/47581858-810c9193-3b4c-4fb9-87fd-ef25ba20a7b5?action=share&source=collection_link&creator=47581858"
+	},
+	"item": [
+		{
+			"name": "تعديل علي المنتج",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer 1|ssm9iKJDRw3BGonVgJlMwxZcWvLHgzS7AfAkGVGB64f1e459",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"price\": 200.00,\r\n    \"stock_quantity\": 50\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://medical.semicolon-solution.net/api/pos/products/4003583103027",
+					"protocol": "https",
+					"host": [
+						"medical",
+						"semicolon-solution",
+						"net"
+					],
+					"path": [
+						"api",
+						"pos",
+						"products",
+						"4003583103027"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "تعديل علي خصائص المنتج",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer 1|ssm9iKJDRw3BGonVgJlMwxZcWvLHgzS7AfAkGVGB64f1e459",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"price_adjustment\": 100.00,\r\n    \"stock_quantity\": 150\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://medical.semicolon-solution.net/api/pos/products/077315000155/555",
+					"protocol": "https",
+					"host": [
+						"medical",
+						"semicolon-solution",
+						"net"
+					],
+					"path": [
+						"api",
+						"pos",
+						"products",
+						"077315000155",
+						"555"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -11,8 +11,10 @@ use App\Models\ExternalReference;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\SyncEventService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class SyncEventController extends Controller
 {
@@ -42,21 +44,33 @@ class SyncEventController extends Controller
 
     public function showProduct(string $id): JsonResponse
     {
-        $product = Product::with(['variants.price', 'variants.stock'])->findOrFail($id);
+        try {
+            $product = Product::with(['variants.price', 'variants.stock'])->findOrFail($id);
+        } catch (QueryException $e) {
+            // Sync tables (e.g. product_variants) may not exist yet — load product only and return empty variants
+            $product = Product::findOrFail($id);
+            $product->setRelation('variants', collect());
+        }
+
         $targetSystem = config('sync.default_target_system', 'erp');
 
-        $remoteProductId = ExternalReference::where([
-            'local_type' => 'product',
-            'local_id' => $product->id,
-            'source_system' => $targetSystem,
-        ])->value('remote_id');
-
-        $variants = $product->variants->map(function (ProductVariant $variant) use ($targetSystem) {
-            $remoteVariantId = ExternalReference::where([
-                'local_type' => 'variant',
-                'local_id' => $variant->id,
+        $remoteProductId = null;
+        if (Schema::hasTable('external_references')) {
+            $remoteProductId = ExternalReference::where([
+                'local_type' => 'product',
+                'local_id' => $product->id,
                 'source_system' => $targetSystem,
             ])->value('remote_id');
+        }
+
+        $variants = $product->variants->map(function (ProductVariant $variant) use ($targetSystem) {
+            $remoteVariantId = Schema::hasTable('external_references')
+                ? ExternalReference::where([
+                    'local_type' => 'variant',
+                    'local_id' => $variant->id,
+                    'source_system' => $targetSystem,
+                ])->value('remote_id')
+                : null;
 
             return [
                 'id' => (string) $variant->id,

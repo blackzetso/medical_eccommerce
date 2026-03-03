@@ -161,6 +161,10 @@ class ClientAccountController extends Controller
                         'body'     => $result['body'] ?? null,
                     ]);
                 }
+            } else {
+                \Illuminate\Support\Facades\Log::info('OrgaSoft: التكامل معطّل على هذا السيرفر (orgasoft_enabled غير مفعّل في الإعدادات)', [
+                    'order_id' => $order->id,
+                ]);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('OrgaSoft: فشل إرسال الفاتورة بعد إنشاء الطلب من الموقع', [

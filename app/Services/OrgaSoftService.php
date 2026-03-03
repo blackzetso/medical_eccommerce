@@ -196,10 +196,11 @@ class OrgaSoftService
             return $result;
         } catch (\Throwable $e) {
             Log::error("OrgaSoftService::post {$path} failed", [
-                'url'              => $url,
-                'error'            => $e->getMessage(),
-                'request_headers'  => $headersForLog,
-                'request_body'     => $jsonBody,
+                'url'     => $url,
+                'error'   => $e->getMessage(),
+                'hint'    => 'على السيرفر: تحقق من إمكانية الوصول للـ URL (جدار ناري / شبكة). شغّل من السيرفر: php artisan orgasoft:test-connection',
+                'headers' => $headersForLog,
+                'body'    => $jsonBody,
             ]);
             return ['success' => false, 'status' => 0, 'body' => $e->getMessage()];
         }

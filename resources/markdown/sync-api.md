@@ -28,7 +28,7 @@
 - GET  `/api/products/{id}`
 - GET  `/api/variants/{id}`
 
-المجموعة محمية بـ `auth:sanctum` + `Authorization: Bearer <token>` + `Idempotency-Key`.
+المجموعة تقبل أحد خياري المصادقة: `Authorization: Bearer <token>` (Sanctum) أو هيدر `API-KEY` (نفس مفتاح OrgaSoft من الإعدادات).
 
 ### POST /api/events/product_update
 Request:
@@ -47,9 +47,9 @@ Request:
   }
 }
 ```
-Response 202:
+Response 200 (معالجة فورية، بدون queue):
 ```json
-{ "queued": true, "duplicate": false, "external_id": "{{uuid}}", "event_type": "product_update" }
+{ "processed": true, "duplicate": false, "external_id": "{{uuid}}", "event_type": "product_update", "event_status": "processed" }
 ```
 
 ### POST /api/events/variant_update
@@ -147,11 +147,13 @@ Returns product + variants + remote mappings:
 - إذا تكرر بمحتوى مختلف → 409 conflict.
 - `external_id` يبقى فريد لكل حدث.
 
-## Queue + Retry
-- جميع POST تكتب EventLog بالحالة pending ثم Job `ProcessSyncEventJob`.
-- Backoff: 1m, 5m, 15m ثم DLQ (حسب إعداد queue).
-- `status`: pending | processed | ignored | failed.
+## المعالجة
+- جميع POST تُعالَج فوراً (بدون queue) ثم يُعاد الرد. لا حاجة لتشغيل queue worker.
+- `event_status` في الرد: processed | ignored | failed.
 - Loop-guard: إذا كان `source == config('sync.source')` → ignored.
+
+## التكوين (config/sync.php و .env)
+- `SYNC_SOURCE`: مصدر النظام المحلي (افتراضي `store`). يجب أن يبقى `store` حتى تُقبَل أحداث Orga/ERP (`source=erp`). لا تضبطه إلى `erp` وإلا ستُتجاهل تحديثات أورجا.
 
 ## جداول جديدة
 - `product_variants`، `variant_prices`، `variant_stocks`
@@ -161,9 +163,8 @@ Returns product + variants + remote mappings:
 - `outbox_events(event_type, payload, target_system, status, attempts, last_error)`
 
 ## Security
-- Bearer Token (Sanctum).
-- Optional: IP allowlist، HMAC Signature (`X-Signature: hmac_sha256(body, secret)`).
-- Rate limit: use `throttle:api`.
+- Bearer Token (Sanctum) أو هيدر `API-KEY` (نفس مفتاح OrgaSoft).
+- Rate limit: `throttle:api`.
 - TLS إجباري.
 
 ## سيناريوهات مختصرة

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\ProcessSyncEventJob;
 use App\Models\EventLog;
 use App\Models\ExternalReference;
 use App\Models\IdempotencyKey;
@@ -41,19 +40,12 @@ class SyncEventService
             ];
         }
 
-        $response = [
-            'queued' => true,
-            'duplicate' => false,
-            'external_id' => $data['external_id'],
-            'event_type' => $eventType,
-        ];
-
         IdempotencyKey::create([
             'key' => $idempotencyKey,
             'method' => $method,
             'path' => $path,
             'body_hash' => $bodyHash,
-            'response' => $response,
+            'response' => null,
         ]);
 
         $log = EventLog::create([
@@ -64,10 +56,22 @@ class SyncEventService
             'payload' => $data,
         ]);
 
-        ProcessSyncEventJob::dispatch($log->id);
+        // Process synchronously so the request completes with result without depending on queue worker.
+        $this->processByLogId($log->id);
+
+        $log->refresh();
+        $response = [
+            'processed' => true,
+            'duplicate' => false,
+            'external_id' => $data['external_id'],
+            'event_type' => $eventType,
+            'event_status' => $log->status,
+        ];
+
+        IdempotencyKey::where('key', $idempotencyKey)->update(['response' => $response]);
 
         return [
-            'status' => 202,
+            'status' => 200,
             'response' => $response,
         ];
     }
@@ -204,6 +208,8 @@ class SyncEventService
                 $this->storeVariantStock($variant, $payload['stock']);
             }
 
+            $this->syncProductFromVariants($variant->product);
+
             return [
                 'status' => 'processed',
             ];
@@ -229,6 +235,8 @@ class SyncEventService
             if (!empty($payload['stock'])) {
                 $this->storeVariantStock($variant, $payload['stock']);
             }
+
+            $this->syncProductFromVariants($variant->product);
 
             return [
                 'status' => 'processed',
@@ -256,10 +264,44 @@ class SyncEventService
                 $this->storeVariantPrice($variant, $payload['price']);
             }
 
+            $this->syncProductFromVariants($variant->product);
+
             return [
                 'status' => 'processed',
             ];
         });
+    }
+
+    /**
+     * Push variant-level price and stock to the Product so the storefront reflects sync updates.
+     */
+    private function syncProductFromVariants(Product $product): void
+    {
+        $product->load(['variants.price', 'variants.stock']);
+        $variants = $product->variants;
+
+        if ($variants->isEmpty()) {
+            return;
+        }
+
+        $totalAvailable = 0;
+        $firstPriceAmount = null;
+
+        foreach ($variants as $variant) {
+            if ($variant->stock) {
+                $totalAvailable += (int) ($variant->stock->available ?? 0);
+            }
+            if ($firstPriceAmount === null && $variant->price !== null) {
+                $firstPriceAmount = (float) $variant->price->amount;
+            }
+        }
+
+        $product->stock_quantity = $totalAvailable;
+        $product->in_stock = $totalAvailable > 0;
+        if ($firstPriceAmount !== null) {
+            $product->price = $firstPriceAmount;
+        }
+        $product->save();
     }
 
     private function resolveProduct(?string $productId, ?string $remoteProductId, string $sourceSystem, ?string $productCode = null): Product
