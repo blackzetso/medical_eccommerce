@@ -17,7 +17,7 @@
         "url": { "raw": "{{base_url}}/api/events/product_update", "host": ["{{base_url}}"], "path": ["api", "events", "product_update"] },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"external_id\": \"{{uuid}}\",\n  \"source\": \"store\",\n  \"occurred_at\": \"{{iso_datetime}}\",\n  \"payload\": {\n    \"product_id\": \"store-123\",\n    \"product_code\": \"PC-0001\",\n    \"remote_product_id\": \"erp-555\",\n    \"name\": \"Panadol 500mg\",\n    \"description\": \"Pain relief\",\n    \"status\": \"active\"\n  }\n}"
+          "raw": "{\n  \"product_id\": \"1\",\n  \"name\": \"Panadol 100mg\",\n  \"price\": 200.00,\n  \"stock_quantity\": 50\n}"
         }
       }
     },

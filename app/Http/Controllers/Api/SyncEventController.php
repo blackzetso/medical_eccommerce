@@ -25,7 +25,21 @@ class SyncEventController extends Controller
 
     public function productUpdate(ProductUpdateEventRequest $request): JsonResponse
     {
-        return $this->respond('product_update', $request);
+        $data = $request->validated();
+
+        $product = Product::findOrFail($data['product_id']);
+        $product->name  = $data['name'];
+        $product->price = $data['price'];
+        $product->stock_quantity = $data['stock_quantity'];
+        $product->save();
+
+        return response()->json([
+            'success'        => true,
+            'product_id'     => (string) $product->id,
+            'name'           => $product->name,
+            'price'          => $product->price,
+            'stock_quantity' => $product->stock_quantity,
+        ]);
     }
 
     public function variantUpdate(VariantUpdateEventRequest $request): JsonResponse

@@ -2,30 +2,22 @@
 
 namespace App\Http\Requests\Sync;
 
-class ProductUpdateEventRequest extends BaseEventRequest
+use Illuminate\Foundation\Http\FormRequest;
+
+class ProductUpdateEventRequest extends FormRequest
 {
-    public function rules(): array
+    public function authorize(): bool
     {
-        return array_merge(parent::rules(), [
-            'payload.product_id' => ['nullable', 'string'],
-            'payload.remote_product_id' => ['nullable', 'string'],
-            'payload.product_code' => ['nullable', 'string', 'max:255'],
-            'payload.name' => ['required', 'string', 'max:255'],
-            'payload.description' => ['nullable', 'string'],
-            'payload.status' => ['nullable', 'in:active,inactive'],
-        ]);
+        return true;
     }
 
-    public function withValidator($validator)
+    public function rules(): array
     {
-        $validator->after(function ($validator) {
-            $hasLocal = (bool) $this->input('payload.product_id');
-            $hasRemote = (bool) $this->input('payload.remote_product_id');
-            $hasCode = (bool) $this->input('payload.product_code');
-
-            if (!($hasLocal || $hasRemote || $hasCode)) {
-                $validator->errors()->add('payload.product_id', 'Provide at least one of product_id, remote_product_id, or product_code.');
-            }
-        });
+        return [
+            'product_id'     => ['required', 'string'],
+            'name'           => ['required', 'string', 'max:255'],
+            'price'          => ['required', 'numeric', 'min:0'],
+            'stock_quantity' => ['required', 'integer', 'min:0'],
+        ];
     }
 }
